@@ -1,0 +1,23 @@
+{
+  "name": "ai-impact-tracker",
+  "version": "1.0.0",
+  "description": "Measure the environmental footprint of your AI usage from the session transcripts already on your machine - exact token counts, not estimates - and see it in a self-contained dashboard led by the one number that matters: what share of your whole yearly footprint is actually AI. Project drill-down, a usage grade, sourced real-world comparisons, a mitigation checklist, and a sanitised build for sharing that carries no project names.",
+  "author": {
+    "name": "Josh Malczyk"
+  },
+  "license": "MIT",
+  "keywords": [
+    "sustainability",
+    "environment",
+    "carbon",
+    "energy",
+    "water",
+    "footprint",
+    "dashboard",
+    "tracking",
+    "efficiency",
+    "privacy"
+  ],
+  "homepage": "https://github.com/craftgrow/ai-impact-tracker",
+  "repository": "https://github.com/craftgrow/ai-impact-tracker"
+}

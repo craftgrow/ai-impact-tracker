@@ -1,0 +1,1769 @@
+/* ============================================================
+   AI ENVIRONMENTAL IMPACT DASHBOARD
+   Self-contained · zero external calls · offline-friendly
+   Data + methodology are baked in; import your own log anytime.
+   ============================================================ */
+:root{
+  /* Natural & Grounded — warm off-whites, forest/sage/terracotta, charcoal ink */
+  --bg:#FDFBF7; --panel:#FFFFFF; --card:#FFFFFF; --card2:#F4F1EA;
+  --line:#E7E2D6; --line-soft:#EFEBE1;
+  --ink:#2D312E; --ink-soft:#54594F; --mut:#767B6F; --mut2:#8E9387;
+  --teal:#5E7A5C; --leaf:#3E5E4A; --amber:#C9A15A; --coral:#C87A53; --violet:#7C6F94; --sky:#6E8B90;
+  --good:#3E5E4A; --warn:#C9A15A; --bad:#C87A53;
+  --forest:#1B3B2B; --moss:#3E5E4A; --sage:#708271; --terra:#C87A53;
+  --shadow:0 18px 44px rgba(50,40,25,.16),0 6px 16px rgba(50,40,25,.08);
+  --sh-sm:0 1px 2px rgba(70,58,40,.04),0 2px 6px rgba(70,58,40,.06);
+  --glass:rgba(253,251,247,.88);
+  --ob-grad:linear-gradient(180deg,#FFFFFF,#FAF7F0);
+  --rad1:#EFF0E4; --rad2:#F6EFE6;
+  --btn-ink:#F4F1EA;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+
+  /* ---- v0.4 refinement layer: elevation, surface wash, motion ---- */
+  --e1:0 1px 2px rgba(62,55,38,.045), 0 2px 5px rgba(62,55,38,.045);
+  --e2:0 2px 4px rgba(62,55,38,.05),  0 8px 20px rgba(62,55,38,.07);
+  --e3:0 8px 18px rgba(62,55,38,.09), 0 22px 48px rgba(62,55,38,.11);
+  --wash:linear-gradient(168deg,rgba(255,255,255,.9),rgba(244,241,234,.55));
+  --wash-panel:linear-gradient(170deg,rgba(255,255,255,.96),rgba(247,244,237,.75));
+  --hair:rgba(62,94,74,.10);
+  --grade-grad:linear-gradient(158deg,#3E5E4A,#27402F);
+  --grade-ink:#EDF2ED;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+/* ---------- dark theme (toggle in sticky header; persists per browser) ---------- */
+html[data-theme=dark]{
+  /* Surfaces step up from the page instead of sitting flush with it: bg is
+     pushed down, panel/card up, and the hairline is brightened. Previously
+     panel was 4% lighter than bg with a 3% wash on top, so cards read as
+     flat shapes rather than as surfaces. --mut2 was ~3.2:1 and carries real
+     labels, so it moves above the 4.5:1 line. */
+  --bg:#101210; --panel:#1E221D; --card:#1E221D; --card2:#282D26;
+  --line:#394036; --line-soft:#2C322A;
+  --ink:#E8E6DD; --ink-soft:#C4C3B6; --mut:#9AA095; --mut2:#868C81;
+  --teal:#8FAF8C; --leaf:#9DBFA6; --amber:#D9B36E; --coral:#D68F6B; --violet:#A79BC0; --sky:#93B0B5;
+  --good:#9DBFA6; --warn:#D9B36E; --bad:#D68F6B;
+  --forest:#2E5540; --moss:#4E7A5E; --sage:#8AA08B; --terra:#D68F6B;
+  --shadow:0 18px 44px rgba(0,0,0,.5),0 6px 16px rgba(0,0,0,.3);
+  --sh-sm:0 1px 2px rgba(0,0,0,.25),0 2px 6px rgba(0,0,0,.2);
+  --glass:rgba(20,22,19,.85);
+  --ob-grad:linear-gradient(180deg,#1F231E,#181B17);
+  --rad1:#1A2019; --rad2:#201D17;
+
+  --e1:0 1px 2px rgba(0,0,0,.3),  0 2px 6px rgba(0,0,0,.22);
+  --e2:0 2px 6px rgba(0,0,0,.34), 0 10px 24px rgba(0,0,0,.3);
+  --e3:0 10px 24px rgba(0,0,0,.45),0 26px 56px rgba(0,0,0,.42);
+  --wash:linear-gradient(168deg,rgba(255,255,255,.055),rgba(255,255,255,.012));
+  --wash-panel:linear-gradient(170deg,rgba(255,255,255,.062),rgba(255,255,255,.015));
+  --hair:rgba(157,191,166,.14);
+  --grade-grad:linear-gradient(158deg,#31523E,#1D3428);
+  --grade-ink:#DFEFE4;
+}
+html[data-theme=dark] .gr-a{color:#9DC7A6!important;border-color:#3E6B4A!important;background:rgba(112,150,113,.16)!important}
+html[data-theme=dark] .gr-b{color:#C0D08A!important;border-color:#5E7A46!important;background:rgba(150,170,90,.15)!important}
+html[data-theme=dark] .gr-c{color:#E0C284!important;border-color:#8F6F2B!important;background:rgba(201,161,90,.15)!important}
+html[data-theme=dark] .gr-d{color:#E4A57F!important;border-color:#B5653D!important;background:rgba(200,122,83,.15)!important}
+html[data-theme=dark] .gr-f{color:#E08F7C!important;border-color:#A33B2B!important;background:rgba(190,80,60,.15)!important}
+html[data-theme=dark] .leaf-badge,html[data-theme=dark] .ob-badge{box-shadow:0 8px 20px rgba(0,0,0,.45)}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:radial-gradient(1100px 520px at 88% -8%,var(--rad1) 0%,transparent 55%),radial-gradient(900px 500px at -5% 8%,var(--rad2) 0%,transparent 50%),var(--bg);transition:background .25s,color .25s;color:var(--ink);font-family:var(--sans);line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:var(--moss)}
+h1,h2,h3{margin:0;letter-spacing:-.01em}
+.wrap{max-width:1200px;margin:0 auto;padding:26px 22px 80px}
+.mut{color:var(--mut)} .small{font-size:12px}
+.mono{font-family:var(--mono)}
+
+/* header */
+.head{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;margin-bottom:8px}
+.head .title h1{font-size:26px;display:flex;align-items:center;gap:11px}
+.leaf-badge{width:34px;height:34px;border-radius:11px;background:linear-gradient(150deg,var(--forest),var(--moss));display:grid;place-items:center;color:var(--btn-ink);font-weight:800;box-shadow:0 8px 20px rgba(27,59,43,.28)}
+.head .title p{margin:6px 0 0;color:var(--mut);font-size:13px;max-width:60ch}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{font-family:var(--sans);font-size:12.5px;font-weight:600;letter-spacing:0;padding:10px 15px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;transition:.18s ease;box-shadow:var(--sh-sm)}
+.btn:hover{border-color:var(--sage);color:var(--ink);transform:translateY(-1px);box-shadow:var(--shadow)}
+.btn.solid{background:linear-gradient(150deg,var(--forest),var(--moss));border-color:transparent;color:var(--btn-ink);font-weight:700}
+.btn.solid:hover{filter:brightness(1.08);background:linear-gradient(150deg,var(--forest),var(--moss))}
+.src-pill{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);border:1px dashed var(--line);border-radius:20px;padding:5px 10px}
+.src-pill b{color:var(--leaf)}
+
+/* filter bar */
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:20px 0 22px;padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--sh-sm)}
+.filters .grp{display:flex;flex-direction:column;gap:4px}
+.filters label{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2)}
+select,input[type=search]{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:var(--sans);font-size:13px;min-width:150px}
+select:focus,input:focus{outline:none;border-color:var(--teal)}
+.seg{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{background:none;border:none;color:var(--mut);font-family:var(--mono);font-size:11px;padding:8px 12px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em}
+.seg button.on{background:var(--forest);color:var(--btn-ink);font-weight:700}
+.spacer{flex:1}
+
+/* KPI cards */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:22px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:18px 18px 16px;position:relative;overflow:hidden;transition:.2s;box-shadow:var(--sh-sm)}
+.kpi:hover{transform:translateY(-3px);border-color:var(--teal);box-shadow:var(--shadow)}
+.kpi .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);display:flex;align-items:center;gap:7px}
+.kpi .dot{width:8px;height:8px;border-radius:50%}
+.kpi .v{font-size:29px;font-weight:700;letter-spacing:-.02em;margin:9px 0 2px;line-height:1}
+.kpi .v .u{font-size:14px;color:var(--mut);font-weight:600;margin-left:3px}
+.kpi .cmp{font-size:12px;color:var(--ink-soft);margin-top:7px;min-height:32px}
+.kpi .cmp b{color:var(--leaf)}
+.kpi .spark{position:absolute;right:12px;top:14px;opacity:.5}
+
+/* panels + charts */
+.grid{display:grid;gap:16px}
+.grid.two{grid-template-columns:1.5fr 1fr}
+.grid.three{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.grid.two,.grid.three{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--sh-sm)}
+.panel h3{font-size:14px;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.panel h3 .hint{font-size:10px;color:var(--mut2);text-transform:none;letter-spacing:0;font-family:var(--sans)}
+.panel .sub{color:var(--mut);font-size:12px;margin-bottom:14px}
+svg{display:block;width:100%;overflow:visible}
+
+/* project bars */
+.pbar{display:grid;grid-template-columns:1fr;gap:9px;margin-top:6px}
+.prow{cursor:pointer;padding:4px;border-radius:9px;transition:.14s}
+.prow:hover{background:var(--card2)}
+.prow.sel{background:var(--card2);outline:1px solid var(--teal)}
+.prow .top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px}
+.prow .top b{color:var(--ink)} .prow .top .n{font-family:var(--mono);color:var(--ink-soft)}
+.track{height:9px;border-radius:6px;background:var(--line-soft);overflow:hidden}
+.fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--teal),var(--leaf))}
+
+/* legend */
+.legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:12px}
+.legend .li{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-soft)}
+.legend .sw{width:11px;height:11px;border-radius:3px}
+.legend .n{font-family:var(--mono);color:var(--mut);margin-left:2px}
+
+/* drill panel */
+.drill{border:1px solid var(--sage);background:linear-gradient(180deg,rgba(112,130,113,.10),transparent);border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:var(--sh-sm)}
+.drill .dh{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.drill .dh h2{font-size:19px}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:8px}
+.mini .m{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.mini .m .k{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+.mini .m .v{font-size:19px;font-weight:700;margin-top:5px}
+
+/* table */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{text-align:left;padding:10px 10px;border-bottom:1px solid var(--line-soft)}
+th{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);cursor:pointer;user-select:none;white-space:nowrap}
+th:hover{color:var(--ink)}
+td.num,th.num{text-align:right;font-family:var(--mono)}
+tbody tr:hover{background:var(--card2)}
+.tag{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--ink-soft);white-space:nowrap}
+.ctx{color:var(--mut);max-width:420px}
+.tbl-wrap{overflow-x:auto}
+
+/* mitigation */
+.mit-cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px}
+.mcat{background:var(--card2);border:1px solid var(--line);border-radius:15px;padding:16px}
+.mcat h4{margin:0 0 3px;font-size:14px;display:flex;align-items:center;gap:8px}
+.mcat .ci{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:15px}
+.mcat .cd{font-size:11.5px;color:var(--mut);margin-bottom:12px}
+.act{display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--line-soft)}
+.act input{margin-top:3px;width:16px;height:16px;accent-color:var(--teal);cursor:pointer;flex:none}
+.act .a-t{font-size:13px;color:var(--ink)}
+.act .a-i{font-size:11px;color:var(--leaf);font-family:var(--mono)}
+.act.done .a-t{text-decoration:line-through;color:var(--mut)}
+.progress{height:7px;border-radius:5px;background:var(--line-soft);overflow:hidden;margin-top:12px}
+.progress .pf{height:100%;background:linear-gradient(90deg,var(--teal),var(--leaf));transition:width .3s}
+
+/* methodology */
+.meth table{font-size:12.5px}
+.meth input.rate{width:74px;text-align:right;padding:5px 7px;min-width:0}
+.callout{font-size:12.5px;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:0 10px 10px 0;padding:12px 14px;margin-top:14px}
+.src{font-size:12px;color:var(--ink-soft);padding:7px 0;border-top:1px solid var(--line-soft)}
+.src b{color:var(--ink)}
+details{margin-top:10px}
+summary{cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--teal)}
+
+.sec-label{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut2);margin:34px 2px 12px;display:flex;align-items:center;gap:10px}
+.sec-label::after{content:"";flex:1;height:1px;background:var(--line)}
+footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:var(--mut2);font-size:12px}
+.hidden{display:none!important}
+.empty{padding:40px;text-align:center;color:var(--mut)}
+input[type=file]{display:none}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--forest);color:var(--btn-ink);padding:12px 20px;border-radius:11px;box-shadow:var(--shadow);font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:.28s ease;z-index:120;max-width:88vw;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* paste box + drag-drop */
+.ob textarea.paste{width:100%;min-height:170px;background:var(--bg);border:1px solid var(--line);border-radius:10px;color:var(--ink);font-family:var(--mono);font-size:12px;padding:11px;resize:vertical;line-height:1.5}
+.ob textarea.paste:focus{outline:none;border-color:var(--teal)}
+.paste-err{color:var(--coral);font-size:12px;margin-top:9px;min-height:16px;font-family:var(--mono)}
+.paste-ok{color:var(--leaf)}
+.drop-hint{position:fixed;inset:0;z-index:95;background:rgba(45,49,46,.62);backdrop-filter:blur(3px);display:grid;place-items:center;pointer-events:none;opacity:0;transition:.12s}
+.drop-hint.on{opacity:1}
+.drop-hint .dz{border:2.5px dashed var(--teal);border-radius:22px;padding:46px 64px;text-align:center;background:rgba(55,211,170,.08)}
+.drop-hint .dz .di{font-size:42px;line-height:1}
+.drop-hint .dz .dt{font-size:19px;font-weight:700;margin-top:12px;color:var(--ink)}
+.drop-hint .dz .ds{color:var(--ink-soft);font-size:13px;margin-top:4px;font-family:var(--mono)}
+
+/* info tooltip (where's my log) */
+.hint-wrap{position:relative;display:inline-flex;align-items:center}
+.hint-i{width:19px;height:19px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--mut);font-size:11px;display:grid;place-items:center;cursor:help;font-family:var(--mono);user-select:none}
+.hint-wrap:hover .hint-i,.hint-wrap:focus-within .hint-i{color:var(--ink);border-color:var(--teal)}
+.hint-pop{position:absolute;top:calc(100% + 9px);right:0;width:320px;max-width:78vw;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:13px 14px;font-size:12px;color:var(--ink-soft);z-index:70;opacity:0;visibility:hidden;transform:translateY(-4px);transition:.15s;text-align:left;line-height:1.55;text-transform:none;letter-spacing:normal;font-family:var(--sans)}
+.hint-wrap:hover .hint-pop,.hint-wrap:focus-within .hint-pop{opacity:1;visibility:visible;transform:none}
+.hint-pop b{color:var(--ink)}
+.hint-pop .path{font-family:var(--mono);font-size:11px;color:var(--leaf);background:var(--card);border:1px solid var(--line);border-radius:5px;padding:1px 5px;word-break:break-all}
+.hint-pop .kbd{font-family:var(--mono);font-size:10.5px;background:var(--card);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 5px;color:var(--ink)}
+.hint-pop pre{margin:9px 0 0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);overflow:auto;white-space:pre;line-height:1.5}
+.hint-pop .pk{color:var(--sky)} .hint-pop .pv{color:var(--leaf)}
+
+/* onboarding overlay */
+.ob-scrim{position:fixed;inset:0;z-index:80;background:rgba(45,49,46,.5);backdrop-filter:blur(5px);display:grid;place-items:center;padding:22px;overflow:auto}
+.ob-scrim.hidden{display:none!important}
+.ob{max-width:720px;width:100%;background:var(--ob-grad);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:26px 26px 22px;position:relative;animation:obIn .28s ease}
+@keyframes obIn{from{opacity:0;transform:translateY(10px) scale(.99)}to{opacity:1;transform:none}}
+.ob .ob-x{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--mut);cursor:pointer;font-size:15px;line-height:1;display:grid;place-items:center}
+.ob .ob-x:hover{color:var(--ink);border-color:var(--teal)}
+.ob .ob-badge{width:44px;height:44px;border-radius:12px;background:linear-gradient(150deg,var(--forest),var(--moss));display:grid;place-items:center;font-size:24px;box-shadow:0 8px 22px rgba(27,59,43,.28)}
+.ob h2{font-size:22px;margin:14px 0 6px;letter-spacing:-.01em}
+.ob .ob-lede{color:var(--ink-soft);font-size:13.5px;max-width:58ch;margin-bottom:2px}
+.ob .ob-lede b{color:var(--leaf)}
+.ob-sec{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut2);margin:20px 0 10px;display:flex;align-items:center;gap:10px}
+.ob-sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.ob-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:560px){.ob-metrics{grid-template-columns:1fr}.ob-steps{grid-template-columns:1fr!important}}
+.ob-metric{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.ob-metric .mi{font-size:19px}
+.ob-metric .mt{font-weight:700;font-size:13.5px;margin-top:4px}
+.ob-metric .md{color:var(--mut);font-size:11.5px;margin-top:2px;line-height:1.45}
+.ob-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.ob-step{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;position:relative}
+.ob-step .sn{font-family:var(--mono);font-size:10px;color:var(--teal);letter-spacing:.1em}
+.ob-step .st{font-weight:700;font-size:13px;margin:5px 0 3px}
+.ob-step .sd{color:var(--mut);font-size:11.5px;line-height:1.45}
+.ob-note{display:flex;gap:10px;align-items:flex-start;background:rgba(103,217,143,.09);border:1px solid var(--line);border-left:3px solid var(--leaf);border-radius:0 10px 10px 0;padding:11px 13px;margin-top:18px;font-size:12.5px;color:var(--ink-soft)}
+.ob-note .ni{font-size:15px;line-height:1.2}
+.ob-flow{color:var(--ink-soft);font-size:12.5px;margin-top:16px;line-height:1.7}
+.ob-flow .chip{font-family:var(--mono);font-size:11px;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:2px 7px;color:var(--ink);white-space:nowrap}
+.ob-cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.ob-cta .btn{font-size:12px;padding:11px 16px}
+.ob-foot{color:var(--mut2);font-size:11px;margin-top:14px;text-align:center}
+
+/* smooth scroll + offsets so sticky nav doesn't cover section tops */
+html{scroll-behavior:smooth}
+#kpis,#trends,#sessions,#actions,#method{scroll-margin-top:132px}
+
+/* sticky section nav */
+.secnav{position:sticky;top:10px;z-index:60;display:flex;align-items:center;gap:5px;flex-wrap:wrap;
+  background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--line);border-radius:13px;padding:7px 9px;margin:2px 0 20px;box-shadow:var(--sh-sm)}
+.secnav a{font-size:12.5px;font-weight:600;color:var(--ink-soft);text-decoration:none;padding:8px 13px;border-radius:9px;transition:.15s;white-space:nowrap}
+.secnav a:hover{background:var(--card2);color:var(--ink)}
+.secnav a.active{background:var(--forest);color:var(--btn-ink)}
+.secnav .navspace{flex:1;min-width:8px}
+.pdf-wrap{position:relative}
+.pdf-btn{font-size:12px;padding:8px 13px}
+.pdf-menu{position:absolute;right:0;top:calc(100% + 8px);background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;min-width:224px;z-index:75;display:none}
+.pdf-menu.open{display:block}
+.pdf-menu .mh{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--mut);padding:7px 10px 5px}
+.pdf-menu button{display:flex;width:100%;align-items:center;justify-content:space-between;gap:14px;background:none;border:none;text-align:left;padding:9px 11px;border-radius:8px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;font-family:var(--sans);transition:.13s}
+.pdf-menu button:hover{background:var(--card2)}
+.pdf-menu button span{font-size:11px;font-weight:500;color:var(--mut)}
+@media(max-width:640px){.secnav{overflow-x:auto;flex-wrap:nowrap}}
+
+/* print / PDF export */
+@media print{
+  @page{margin:14mm}
+  html,html[data-theme=dark]{--bg:#fff;--panel:#fff;--card:#fff;--card2:#F4F1EA;--line:#E7E2D6;--line-soft:#EFEBE1;--ink:#2D312E;--ink-soft:#54594F;--mut:#8A8F84;--mut2:#A7AB9F;--teal:#5E7A5C;--leaf:#3E5E4A;--amber:#C9A15A;--coral:#C87A53;--violet:#7C6F94;--sky:#6E8B90;--forest:#1B3B2B;--moss:#3E5E4A;--sage:#708271;--rad1:#fff;--rad2:#fff;--shadow:none;--sh-sm:none}
+  body{background:#fff!important}
+  .theme-btn{display:none!important}
+  .secnav,.filters,.toolbar,.ob-scrim,.drop-hint,.toast,.hint-wrap{display:none!important}
+  .wrap{max-width:none;padding:0}
+  .panel,.kpi,.mcat,.drill{box-shadow:none!important;break-inside:avoid}
+  body[data-print] [data-sec]{display:none!important}
+  body[data-print="all"] [data-sec]{display:block!important}
+  body[data-print="overview"] [data-sec="overview"]{display:block!important}
+  body[data-print="trends"] [data-sec="trends"]{display:block!important}
+  body[data-print="sessions"] [data-sec="sessions"]{display:block!important}
+  body[data-print="actions"] [data-sec="actions"]{display:block!important}
+  body[data-print="method"] [data-sec="method"]{display:block!important}
+  body[data-print] .drill.hidden{display:none!important}
+  .stickyhead{display:none!important}
+}
+
+/* ===== sticky rollup header ===== */
+.stickyhead{position:sticky;top:8px;z-index:60;margin:2px 0 20px;display:flex;flex-direction:column;gap:8px;
+  background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid var(--line);border-radius:15px;padding:9px 11px;box-shadow:var(--sh)}
+.sh-nav{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.sh-nav a{font-size:12.5px;font-weight:600;color:var(--ink-soft);text-decoration:none;padding:7px 12px;border-radius:9px;transition:.15s;white-space:nowrap}
+.sh-nav a:hover{background:var(--card2);color:var(--ink)}
+.sh-nav a.active{background:var(--forest);color:var(--btn-ink)}
+.sh-nav .navspace{flex:1;min-width:8px}
+.sh-roll{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px dashed var(--line);padding-top:9px}
+@media(max-width:860px){.sh-roll{overflow-x:auto}}
+.mini{display:flex;gap:8px;flex-wrap:wrap;flex:1}
+.mchip{display:flex;flex-direction:column;gap:1px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 11px;min-width:80px;transition:.15s}
+.mchip:hover{border-color:var(--sage)}
+.mchip .ml{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.mchip .mv{font-size:15px;font-weight:800;letter-spacing:-.01em;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.1}
+.mchip .mv small{font-size:9.5px;color:var(--mut);font-weight:700}
+.mchip.gradechip{align-items:center;justify-content:center;min-width:60px;border-width:2px}
+.mchip.gradechip .mv{font-size:22px;line-height:1}
+.gr-a{color:#3E6B4A!important;border-color:#8FB89A!important;background:rgba(112,150,113,.14)!important}
+.gr-b{color:#5E7A46!important;border-color:#AEC189!important;background:rgba(150,170,90,.14)!important}
+.gr-c{color:#A9822B!important;border-color:#DCC488!important;background:rgba(201,161,90,.16)!important}
+.gr-d{color:#B5653D!important;border-color:#E0B090!important;background:rgba(200,122,83,.15)!important}
+.gr-f{color:#A33B2B!important;border-color:#DDA08F!important;background:rgba(190,80,60,.14)!important}
+
+/* ===== grade KPI card ===== */
+.kpi.gradecard .gletter{font-size:46px;font-weight:800;letter-spacing:-.03em;line-height:.9;margin:8px 0 2px}
+.kpi.gradecard .gscore{font-size:12px;color:var(--mut);font-weight:700}
+.kpi.gradecard .gbar{height:7px;border-radius:5px;background:var(--line-soft);overflow:hidden;margin:11px 0 9px}
+.kpi.gradecard .gbar>i{display:block;height:100%;border-radius:5px;width:0;transition:width .6s cubic-bezier(.22,.61,.36,1)}
+.kpi.gradecard .gwhy{font-size:11.5px;color:var(--ink-soft);line-height:1.45}
+
+/* ===== rotating comparisons ===== */
+.comparewrap{margin-bottom:16px}
+.compare{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
+@media(max-width:760px){.compare{grid-template-columns:1fr}}
+.cx{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:14px 15px;overflow:hidden}
+.cx .cic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:19px;flex:none}
+.cx .cbody{min-width:0;flex:1}
+.cx .ck{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+.cx .cbig{font-size:18px;font-weight:800;color:var(--ink);margin:2px 0 4px;font-variant-numeric:tabular-nums}
+.cx .cval{font-size:13px;color:var(--ink-soft);min-height:18px}
+.cx .cval.roll{animation:rollin .5s cubic-bezier(.22,.61,.36,1)}
+@keyframes rollin{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+.cx .cdots{display:flex;gap:5px;margin-top:9px}
+.cx .cdots i{width:5px;height:5px;border-radius:50%;background:var(--line);display:block;transition:.25s}
+.cx .cdots i.on{background:var(--sage);width:14px;border-radius:3px}
+
+/* ===== v0.2 UI refinements ===== */
+/* theme toggle */
+.theme-btn{width:34px;height:34px;padding:0;display:grid;place-items:center;font-size:15px;border-radius:9px}
+/* KPI period-delta chip */
+.delta{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:10px;font-weight:700;border-radius:6px;padding:2px 7px;margin-left:8px;vertical-align:2px;letter-spacing:.02em}
+.delta.down{color:var(--good);background:rgba(112,150,113,.14)}
+.delta.up{color:var(--bad);background:rgba(200,122,83,.14)}
+.delta.flat{color:var(--mut);background:var(--card2)}
+/* clickable model donut + legend */
+#modelDonut svg circle{cursor:pointer;transition:opacity .15s}
+#modelDonut.hasSel svg circle{opacity:.3}
+#modelDonut.hasSel svg circle.sel{opacity:1}
+.legend .li{cursor:pointer;border-radius:8px;padding:4px 6px;transition:.13s}
+.legend .li:hover{background:var(--card2)}
+.legend .li.sel{background:var(--card2);outline:1px solid var(--teal)}
+/* drill-down: per-model breakdown rows */
+.drill .dm{display:flex;align-items:center;gap:10px;margin:5px 0}
+.drill .dm .dml{font-size:11.5px;color:var(--ink-soft);width:110px;flex:none;display:flex;align-items:center;gap:6px}
+.drill .dm .dml .sw{width:9px;height:9px;border-radius:3px;flex:none}
+.drill .dm .track{flex:1}
+.drill .dm .dmn{font-family:var(--mono);font-size:11px;color:var(--mut);width:104px;text-align:right;flex:none}
+.drill .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:12px}
+@media(max-width:760px){.drill .cols{grid-template-columns:1fr}}
+.drill .colhead{font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:6px}
+/* generic dropdown menu (shared by Data + Export PDF) */
+.menu-check{color:var(--leaf);font-weight:800}
+.pdf-menu .msep{height:1px;background:var(--line);margin:5px 8px}
+.pdf-menu .mfoot{font-size:10.5px;color:var(--mut2);padding:7px 10px 6px;line-height:1.5}
+.pdf-menu .mfoot .path{font-family:var(--mono);font-size:10px;color:var(--leaf);word-break:break-all}
+/* two-step destructive confirm */
+.btn.arm,.pdf-menu button.arm{color:var(--bad)!important;border-color:var(--bad)!important}
+/* onboarding: collapsible file-location details */
+.ob details{margin-top:10px;font-size:12px;color:var(--ink-soft)}
+.ob details summary{cursor:pointer;font-weight:600;color:var(--ink)}
+.ob details pre{margin:9px 0 0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);overflow:auto;line-height:1.5}
+.ob details .path{font-family:var(--mono);font-size:11px;color:var(--leaf);background:var(--card);border:1px solid var(--line);border-radius:5px;padding:1px 5px;word-break:break-all}
+.ob details .kbd{font-family:var(--mono);font-size:10.5px;background:var(--card);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 5px;color:var(--ink)}
+.ob details .pk{color:var(--sky)} .ob details .pv{color:var(--leaf)}
+
+/* ============================================================
+   Efficiency + context-cost cards
+   ============================================================ */
+.cx-grid{display:flex;flex-direction:column;gap:10px}
+.cx-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.cx-card.warn{border-color:var(--amber);background:linear-gradient(180deg,rgba(201,161,90,.10),transparent)}
+.cx-card .cxk{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2);margin-bottom:4px}
+.cx-card .cxv{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--ink);line-height:1.1}
+.cx-card .cxv .u{font-size:12px;font-weight:600;color:var(--mut);letter-spacing:0}
+.cx-card .cxv.ok{color:var(--leaf)}
+.cx-card .cxv.pending{color:var(--mut2)}
+.cx-card .cxd{font-size:12px;color:var(--mut);line-height:1.55;margin-top:5px}
+.cx-card .cxd .mono{font-family:var(--mono);font-size:11px;color:var(--ink-soft)}
+#effHint .up{color:var(--coral);font-weight:700}
+#effHint .down{color:var(--leaf);font-weight:700}
+
+/* ============================================================
+   Life footprint panel
+   ============================================================ */
+.seg.lifeseg{display:inline-flex;text-transform:none;letter-spacing:0}
+.seg.lifeseg button{font-size:11px;padding:5px 11px}
+.lf-form{margin-bottom:16px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--card)}
+.lf-form>summary{margin:-2px 0}
+.lf-grp{margin-top:14px}
+.lf-gh{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut2);margin-bottom:8px}
+.lf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.lf{display:flex;flex-direction:column;gap:4px}
+.lf .lfl{font-size:11.5px;font-weight:600;color:var(--ink-soft)}
+.lf .lfi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:13px;color:var(--ink);font-family:var(--mono);width:100%}
+.lf .lfi:focus{outline:none;border-color:var(--teal)}
+.lfh{font-size:10.5px;color:var(--mut2);font-family:var(--sans);font-weight:400;letter-spacing:0;text-transform:none}
+.lf-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding-top:12px;border-top:1px solid var(--line-soft)}
+.lf-chk{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-soft);cursor:pointer}
+.lf-chk input{width:16px;height:16px;accent-color:var(--teal);cursor:pointer}
+.lf-head{margin:4px 2px 18px}
+/* The single most important sentence in the tool — sized like it. */
+.lf-big{font-size:25px;font-weight:750;letter-spacing:-.022em;line-height:1.28;color:var(--ink)}
+.lf-big b{color:var(--leaf);font-weight:800}
+.lf-sub{font-size:13.5px;color:var(--mut);line-height:1.65;margin-top:10px;max-width:68ch}
+.lf-sub b{color:var(--ink-soft)}
+
+/* hero percentage: AI as a share of everything else, stated once, large */
+.lf-hero{
+  scroll-margin-top:132px;   /* clears the sticky header when the pill jumps here */
+  display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  margin:0 0 18px;padding:20px 22px;border-radius:16px;
+  background:linear-gradient(135deg,rgba(43,138,122,.13),rgba(43,138,122,.03));
+  border:1px solid var(--line);
+}
+.lf-hero .lh-fig{display:flex;flex-direction:column;gap:2px;flex:none}
+.lf-hero .lh-pct{
+  font-family:var(--sans);font-size:58px;font-weight:800;letter-spacing:-.045em;
+  line-height:.92;color:var(--teal);
+}
+.lf-hero .lh-cap{
+  font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--mut2);
+}
+.lf-hero .lh-say{font-size:15px;line-height:1.5;color:var(--ink-soft);flex:1 1 260px;min-width:0}
+.lf-hero .lh-say b{color:var(--ink);font-weight:700}
+
+/* estimated all-AI line — visually subordinate to the measured number, and
+   tagged so it can never be mistaken for one */
+.lf-hero .lh-est{
+  flex:1 1 100%;display:flex;gap:10px;align-items:flex-start;
+  margin-top:4px;padding-top:13px;border-top:1px dashed var(--line);
+  font-size:12.5px;line-height:1.55;color:var(--mut);
+}
+.lf-hero .le-tag{
+  flex:none;font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--amber);border:1px solid var(--amber);border-radius:5px;padding:3px 6px;margin-top:1px;
+}
+.lf-hero .lh-est b{color:var(--ink-soft);font-weight:700}
+
+/* ---------- baseline setup form ---------- */
+.ob-hint{margin-top:12px;font-size:12px;line-height:1.55;color:var(--mut)}
+.ob-hint b{color:var(--ink-soft)}
+/* The six questions are taller than a laptop viewport. Scroll the QUESTIONS,
+   not the modal, so the running baseline total and the primary button stay on
+   screen the whole way down — the preview is the reason to keep answering, and
+   it is worthless parked below the fold. */
+#baseScrim .ob{display:flex;flex-direction:column;max-height:92vh}
+#baseScrim .bq-list{overflow-y:auto;flex:1 1 auto;min-height:0;padding-right:4px}
+#baseScrim .bq-preview,#baseScrim .ob-cta,#baseScrim .ob-foot{flex:none}
+.bq-list{display:flex;flex-direction:column;gap:2px;margin:18px 0 4px}
+.bq{display:flex;gap:13px;align-items:flex-start;padding:14px 0;border-top:1px solid var(--line-soft)}
+.bq:first-child{border-top:0;padding-top:6px}
+.bq-n{
+  flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
+  font-family:var(--mono);font-size:11px;font-weight:700;color:var(--leaf);
+  background:rgba(43,138,122,.14);border:1px solid var(--line);margin-top:1px;
+}
+.bq-ai .bq-n{color:var(--amber);background:rgba(201,161,90,.16)}
+.bq-body{flex:1;min-width:0}
+.bq-q{display:block;font-size:14.5px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+.bq-note{font-size:11.5px;line-height:1.55;color:var(--mut);margin:3px 0 9px;max-width:60ch}
+.bq-note b{color:var(--ink-soft)}
+.bq-row{display:flex;gap:10px;flex-wrap:wrap}
+.bq-f{display:flex;flex-direction:column;gap:4px;flex:1 1 150px;min-width:0}
+.bq-f.wide{flex-basis:100%}
+.bq-f label{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut2)}
+.bq-f input,.bq-f select{
+  width:100%;background:var(--bg);border:1px solid var(--line);border-radius:9px;
+  color:var(--ink);font-size:14px;padding:9px 10px;font-family:var(--sans);
+}
+.bq-f input:focus,.bq-f select:focus{outline:none;border-color:var(--teal)}
+/* live baseline readout — the reason to keep answering */
+.bq-preview{
+  display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+  margin:14px 0 16px;padding:13px 15px;border-radius:12px;
+  background:linear-gradient(135deg,rgba(43,138,122,.13),transparent);border:1px solid var(--line);
+}
+.bq-preview:empty{display:none}
+.bq-preview .bp-l{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2)}
+.bq-preview .bp-v{font-size:23px;font-weight:800;letter-spacing:-.02em;color:var(--teal)}
+.bq-preview .bp-u{font-size:11px;font-weight:600;color:var(--mut);margin-left:5px}
+.bq-preview .bp-n{font-size:11.5px;color:var(--mut);flex:1 1 100%}
+@media(max-width:520px){
+  .bq{gap:10px}
+  .bq-f{flex-basis:100%}
+  /* claw vertical space back from the intro so more than one question is
+     visible above the pinned baseline readout */
+  #baseScrim .ob{padding:20px 18px 14px}
+  #baseScrim h2{font-size:19px;margin:10px 0 4px}
+  #baseScrim .ob-lede{font-size:12.5px;line-height:1.5}
+  #baseScrim .bq-list{margin:12px 0 2px}
+  #baseScrim .bq-preview{margin:10px 0 12px;padding:11px 13px}
+  #baseScrim .bq-preview .bp-v{font-size:20px}
+}
+
+/* ---------- month-by-month share ---------- */
+.lf-months{margin:0 0 20px;padding:16px 18px;border-radius:14px;background:var(--card2);border:1px solid var(--line-soft)}
+.lm-head{
+  display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;
+  font-size:13.5px;font-weight:700;color:var(--ink);margin-bottom:12px;
+}
+.lm-head span{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--mut2);font-weight:500}
+.lm-rows{display:flex;flex-direction:column;gap:7px}
+.lm-row{display:grid;grid-template-columns:38px 1fr 62px 66px;align-items:center;gap:10px}
+.lm-m{font-family:var(--mono);font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+.lm-m i{color:var(--amber);font-style:normal}
+.lm-track{height:8px;border-radius:5px;background:var(--line-soft);overflow:hidden;display:block}
+.lm-fill{height:100%;border-radius:5px;background:var(--teal);display:block;transition:width .3s}
+.lm-p{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);text-align:right}
+.lm-d{font-family:var(--mono);font-size:10.5px;text-align:right}
+.lm-d.up{color:var(--amber)}
+.lm-d.down{color:var(--leaf)}
+.lm-d.flat{color:var(--mut2)}
+.lm-foot{margin-top:11px;font-size:12px;line-height:1.55;color:var(--mut)}
+.lm-foot b{color:var(--ink-soft)}
+@media(max-width:520px){
+  .lf-months{padding:14px 13px}
+  .lm-row{grid-template-columns:32px 1fr 54px;gap:8px}
+  .lm-d{display:none}          /* the bar already shows direction on a small screen */
+}
+@media(max-width:520px){
+  .lf-big{font-size:21px}
+  .lf-hero{gap:14px;padding:16px 15px}
+  .lf-hero .lh-pct{font-size:44px}
+  .lf-hero .lh-say{font-size:14px;flex-basis:100%}
+}
+.lbars{display:flex;flex-direction:column;gap:13px}
+.lrow .ltop{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:5px;font-size:13px}
+.lrow .ltop .n{font-family:var(--mono);font-size:12px;color:var(--ink-soft);white-space:nowrap}
+.lrow .ltop .lp{color:var(--mut2)}
+.lrow .track{height:11px;border-radius:6px;background:var(--card2);overflow:hidden}
+.lrow .fill{height:100%;border-radius:6px;transition:width .3s}
+.lrow .lnote{font-size:11px;color:var(--mut2);margin-top:4px;line-height:1.5}
+.lrow .lcav{font-size:11px;color:var(--amber);margin-top:3px;line-height:1.5}
+.lrow.ai .ltop b{color:var(--teal)}
+.lrow.ai{padding-top:11px;margin-top:3px;border-top:1px dashed var(--line)}
+.lf-note,.lf-warn{display:flex;gap:11px;align-items:flex-start;margin-top:18px;padding:12px 14px;border-radius:12px;font-size:12px;line-height:1.6;color:var(--mut)}
+.lf-note{background:var(--card2);border:1px solid var(--line-soft)}
+.lf-warn{background:linear-gradient(180deg,rgba(201,161,90,.14),transparent);border:1px solid var(--amber);color:var(--ink-soft);margin:0 0 16px}
+.lf-note .ni,.lf-warn .ni{flex:none;font-size:15px;line-height:1.3}
+@media print{
+  body[data-print="life"] [data-sec="life"]{display:block!important}
+  .lf-form{display:none!important}
+}
+
+/* ============================================================
+   v0.4 — REFINED EARTH
+   A refinement layer over the base rules above: elevation and
+   surface depth, a real type scale, tabular numerals, the new
+   range bar, and chart reveal motion. Palette is unchanged.
+   ============================================================ */
+
+/* ---------- foundations ---------- */
+body{
+  background:
+    radial-gradient(1200px 560px at 88% -10%, var(--rad1) 0%, transparent 58%),
+    radial-gradient(940px 520px at -6% 6%,  var(--rad2) 0%, transparent 52%),
+    var(--bg);
+  letter-spacing:-.002em;
+}
+.wrap{max-width:1240px;padding:30px 24px 96px}
+.mono,.kpi .v,.cx-card .cxv,.lrow .ltop .n,table td.num,.gletter,.mchip .mv{
+  font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1,"cv01" 1;
+}
+
+/* ---------- header ---------- */
+.head{align-items:center;margin-bottom:14px;gap:20px}
+.head .title h1{font-size:30px;font-weight:700;letter-spacing:-.028em;gap:13px}
+.head .title p{font-size:13.5px;margin-top:8px;line-height:1.6;max-width:64ch}
+.leaf-badge{
+  width:40px;height:40px;border-radius:13px;font-size:19px;
+  background:linear-gradient(150deg,var(--forest),var(--moss));
+  box-shadow:0 10px 24px rgba(27,59,43,.30), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.btn{border-radius:11px;box-shadow:var(--e1);transition:transform .18s var(--ease),box-shadow .18s var(--ease),border-color .18s var(--ease)}
+.btn:hover{transform:translateY(-1px);box-shadow:var(--e2)}
+.btn:active{transform:translateY(0);box-shadow:var(--e1)}
+.btn:focus-visible,.seg button:focus-visible,select:focus-visible,input:focus-visible{
+  outline:2px solid var(--teal);outline-offset:2px;border-radius:9px;
+}
+.btn.tiny{padding:6px 11px;font-size:11.5px;border-radius:9px}
+.src-pill{border-radius:22px;padding:6px 12px;background:var(--card);border-style:solid;border-color:var(--line);box-shadow:var(--e1)}
+
+/* ---------- surfaces ---------- */
+.panel{
+  border-radius:18px;padding:20px;background-image:var(--wash-panel);
+  box-shadow:var(--e1);transition:box-shadow .25s var(--ease),border-color .25s var(--ease);
+}
+.panel:hover{box-shadow:var(--e2)}
+.panel h3{font-size:11px;letter-spacing:.13em;color:var(--mut);margin-bottom:6px;align-items:baseline}
+.panel .sub{font-size:12.5px;line-height:1.6;margin-bottom:16px}
+.sec-label{font-size:10px;letter-spacing:.22em;margin:44px 2px 14px;color:var(--mut2)}
+.filters{border-radius:15px;padding:15px 16px;background-image:var(--wash-panel);box-shadow:var(--e1)}
+
+/* ---------- range bar ---------- */
+.rangebar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{border-radius:11px;padding:3px;gap:2px;background:var(--card2);border-color:var(--line);box-shadow:inset 0 1px 2px rgba(62,55,38,.05)}
+html[data-theme=dark] .seg{box-shadow:inset 0 1px 2px rgba(0,0,0,.3)}
+.seg button{
+  border-radius:8px;padding:7px 12px;font-size:10.5px;letter-spacing:.07em;font-weight:600;
+  transition:background .18s var(--ease),color .18s var(--ease),box-shadow .18s var(--ease);
+}
+.seg button:hover:not(.on){color:var(--ink);background:var(--card)}
+.seg button.on{background:var(--grade-grad);color:var(--grade-ink);box-shadow:0 2px 8px rgba(27,59,43,.28)}
+.cmp-toggle{
+  display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--mut);border:1px solid var(--line);border-radius:11px;padding:7px 12px;background:var(--card);
+  transition:color .18s var(--ease),border-color .18s var(--ease);
+}
+.cmp-toggle:hover{color:var(--ink);border-color:var(--sage)}
+.cmp-toggle input{width:15px;height:15px;accent-color:var(--moss);cursor:pointer;margin:0}
+.customrow{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:11px;
+  padding:12px 14px;background:var(--card2);border:1px solid var(--line);border-radius:13px}
+.customrow.hidden{display:none}
+.dt{display:flex;flex-direction:column;gap:5px}
+.dt span{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--mut2)}
+.dt input{
+  background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:9px;
+  padding:7px 10px;font-family:var(--mono);font-size:12.5px;min-width:150px;color-scheme:light;
+}
+html[data-theme=dark] .dt input{color-scheme:dark}
+.dt-hint{font-size:11px;color:var(--mut2);padding-bottom:8px}
+.rangemeta{margin-top:10px}
+.rangemeta .rl{
+  font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--mut);
+  border-left:2px solid var(--hair);padding-left:9px;
+}
+
+/* ---------- KPI cards ---------- */
+.kpis{gap:15px}
+.kpi{
+  border-radius:17px;padding:17px 18px 16px;background-image:var(--wash);
+  box-shadow:var(--e1);
+  transition:transform .22s var(--ease),box-shadow .22s var(--ease),border-color .22s var(--ease);
+}
+.kpi::before{
+  content:"";position:absolute;inset:0 0 auto 0;height:3px;
+  background:linear-gradient(90deg,var(--accent,var(--teal)),transparent 92%);
+  opacity:.85;
+}
+.kpi:hover{transform:translateY(-3px);box-shadow:var(--e3)}
+.kpi .k{font-size:9.5px;letter-spacing:.15em;color:var(--mut);gap:8px}
+.kpi .dot{width:7px;height:7px;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 12%,transparent)}
+.kpi .v{font-size:33px;letter-spacing:-.035em;margin:11px 0 3px}
+.kpi .v .u{font-size:14px;margin-left:4px}
+.kpi .cmp{font-size:11.5px;line-height:1.55;margin-top:9px;color:var(--mut)}
+.kpi .cmp b{color:var(--ink-soft);font-weight:600}
+
+/* delta chip */
+.delta{
+  display:inline-block;vertical-align:middle;margin-left:9px;
+  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.04em;
+  padding:3px 8px;border-radius:20px;border:1px solid transparent;
+}
+.delta.up{color:var(--bad);background:color-mix(in srgb,var(--bad) 13%,transparent);border-color:color-mix(in srgb,var(--bad) 26%,transparent)}
+.delta.down{color:var(--good);background:color-mix(in srgb,var(--good) 15%,transparent);border-color:color-mix(in srgb,var(--good) 28%,transparent)}
+.delta.flat{color:var(--mut);background:var(--card2);border-color:var(--line)}
+
+/* grade card — the one filled surface, so it anchors the row */
+.kpi.gradecard{
+  background:var(--grade-grad);background-image:var(--grade-grad);
+  border-color:transparent;color:var(--grade-ink);
+  box-shadow:0 10px 26px rgba(27,59,43,.26), inset 0 1px 0 rgba(255,255,255,.10);
+}
+.kpi.gradecard::before{display:none}
+.kpi.gradecard .k{color:rgba(237,242,237,.72)}
+.kpi.gradecard .dot{background:var(--grade-ink)!important;box-shadow:none}
+.kpi.gradecard .gletter{font-size:42px;font-weight:800;letter-spacing:-.045em;line-height:1;margin:10px 0 4px;color:var(--grade-ink)}
+.kpi.gradecard .gscore{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(237,242,237,.62)}
+.kpi.gradecard .gbar{height:5px;border-radius:4px;background:rgba(255,255,255,.16);overflow:hidden;margin:11px 0 9px}
+.kpi.gradecard .gbar i{display:block;height:100%;border-radius:4px;background:var(--grade-ink)!important;transition:width .5s var(--ease)}
+.kpi.gradecard .gwhy{font-size:11.5px;line-height:1.55;color:rgba(237,242,237,.8)}
+.kpi.gradecard:hover{box-shadow:0 16px 38px rgba(27,59,43,.34), inset 0 1px 0 rgba(255,255,255,.12)}
+
+/* ---------- sticky rollup ---------- */
+.stickyhead{backdrop-filter:saturate(150%) blur(12px);-webkit-backdrop-filter:saturate(150%) blur(12px)}
+.mini{gap:8px;margin-top:12px}
+.mchip{
+  border-radius:11px;padding:8px 12px;background-image:var(--wash);
+  box-shadow:var(--e1);transition:box-shadow .18s var(--ease),transform .18s var(--ease);
+}
+.mchip:hover{transform:translateY(-1px);box-shadow:var(--e2)}
+.mchip .ml{font-size:9px;letter-spacing:.13em}
+.mchip .mv{font-size:15px;letter-spacing:-.02em}
+
+/* ---------- charts ---------- */
+.pbar .prow .track,.lrow .track{box-shadow:inset 0 1px 2px rgba(62,55,38,.06)}
+html[data-theme=dark] .pbar .prow .track,html[data-theme=dark] .lrow .track{box-shadow:inset 0 1px 2px rgba(0,0,0,.35)}
+.prow{border-radius:11px;padding:9px 11px;transition:background .18s var(--ease)}
+.prow:hover{background:var(--card2)}
+.fill{transition:width .55s var(--ease)}
+
+/* reveal motion — charts draw in once on paint */
+@keyframes eidDraw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes eidRise{from{transform:scaleY(.04);opacity:0}to{transform:scaleY(1);opacity:1}}
+@keyframes eidFade{from{opacity:0}to{opacity:1}}
+/* pathLength="1" on the markup makes the dash math exact at any scale */
+#cumChart path[stroke],#effChart path[stroke]{
+  stroke-dasharray:1;animation:eidDraw .95s var(--ease) both;
+}
+#cumChart path[fill^="url"]{animation:eidFade .8s var(--ease) .18s both}
+#tsChart rect{transform-origin:center bottom;animation:eidRise .5s var(--ease) both}
+#effChart circle{animation:eidFade .5s var(--ease) both}
+#modelDonut circle[data-mk]{transition:stroke-width .2s var(--ease),opacity .2s var(--ease)}
+#modelDonut circle[data-mk]:hover{stroke-width:30;cursor:pointer}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+
+/* ---------- table ---------- */
+table{font-size:12.5px}
+#tbl thead th{
+  position:sticky;top:0;z-index:1;background:var(--panel);
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut2);
+  cursor:pointer;transition:color .15s var(--ease);
+}
+#tbl thead th:hover{color:var(--ink)}
+#tbl tbody tr{transition:background .14s var(--ease)}
+#tbl tbody tr:hover{background:var(--card2)}
+.tag{border-radius:7px;font-size:11px;padding:3px 8px}
+
+/* ---------- mitigation + footprint polish ---------- */
+.mcat{border-radius:15px;background-image:var(--wash)}
+.act{border-radius:10px;transition:background .15s var(--ease)}
+.act:hover{background:var(--card2)}
+.progress{border-radius:20px;overflow:hidden}
+.progress .pf{transition:width .5s var(--ease)}
+.cx-card,.lf-form,.customrow{background-image:var(--wash)}
+.cx-card{transition:box-shadow .18s var(--ease)}
+.cx-card:hover{box-shadow:var(--e1)}
+
+/* ---------- responsive ---------- */
+@media(max-width:760px){
+  .wrap{padding:20px 15px 72px}
+  .head .title h1{font-size:23px}
+  .kpi .v{font-size:28px}
+  .kpi.gradecard .gletter{font-size:36px}
+  .seg{width:100%;overflow-x:auto;scrollbar-width:none}
+  .seg::-webkit-scrollbar{display:none}
+  .seg button{white-space:nowrap}
+  .dt input{min-width:0;width:100%}
+  .dt{flex:1 1 140px}
+}
+
+/* ---------- sticky rollup: two-column layout ----------
+   Left column carries the range controls (and the custom row when it opens);
+   the mini KPI chips sit on the right and wrap under on narrow screens. */
+.sh-roll{
+  display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);
+  align-items:start;gap:10px 20px;border-top:1px solid var(--line-soft);padding-top:11px;
+}
+.sh-roll .rangebar{grid-column:1;grid-row:1}
+.sh-roll .customrow{grid-column:1;grid-row:2}
+.sh-roll .rangemeta{grid-column:1;grid-row:3;margin-top:2px}
+.sh-roll .mini{grid-column:2;grid-row:1 / span 3;justify-content:flex-end;align-content:start;margin:0}
+@media(max-width:1180px){
+  .sh-roll{grid-template-columns:1fr}
+  .sh-roll .rangebar,.sh-roll .customrow,.sh-roll .rangemeta{grid-column:1}
+  .sh-roll .mini{grid-column:1;grid-row:auto;justify-content:flex-start;margin-top:4px}
+}
+.mini{display:flex;flex-wrap:wrap;gap:8px}
+.mchip{min-width:0;padding:7px 11px}
+.mchip.gradechip{border-width:1px;padding:7px 13px}
+.mchip.gradechip .mv{font-size:19px}
+
+/* six KPI cards should fit one row on a desktop width */
+.kpis{grid-template-columns:repeat(auto-fit,minmax(178px,1fr))}
+@media(max-width:1180px){.kpis{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}}
+
+/* the grade card leads the row, so give it a touch more presence */
+.kpi.gradecard{border:none}
+.kpi.gradecard .k{color:rgba(237,242,237,.7)}
+.kpi.gradecard .dot{background:var(--grade-ink);box-shadow:0 0 0 3px rgba(237,242,237,.16)}
+
+/* collapse the hidden custom row cleanly, and drop the pipe-like rule
+   that read as a stray character in front of the date range */
+.sh-roll{row-gap:0}
+.sh-roll .customrow{margin-top:11px}
+.sh-roll .rangemeta{margin-top:9px}
+.rangemeta .rl{border-left:none;padding-left:0;color:var(--mut2)}
+
+/* panels size to their content instead of stretching to the tallest sibling */
+.grid.two,.grid.three{align-items:start}
+.morebtn{width:100%;margin-top:10px;color:var(--mut);font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.morebtn:hover{color:var(--ink)}
+
+/* the old narrow-screen rule let the rollup scroll sideways, which hid the
+   mini chips; the grid above wraps properly now, so let it */
+@media(max-width:860px){ .sh-roll{overflow-x:visible} }
+
+/* 118 rows shouldn't own the page — scroll the table body, keep the header
+   pinned (thead is already sticky), and let the count sit in the panel title */
+.tbl-wrap{max-height:620px;overflow:auto;border-radius:12px;border:1px solid var(--line-soft)}
+.tbl-wrap::-webkit-scrollbar{width:10px;height:10px}
+.tbl-wrap::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px;border:3px solid var(--panel)}
+.tbl-wrap::-webkit-scrollbar-track{background:transparent}
+#tbl thead th{background:var(--card2);box-shadow:inset 0 -1px 0 var(--line)}
+#tbl td{vertical-align:top}
+#tbl td.ctx{max-width:520px}
+
+/* ════════════════════════════════════════════════════════════
+   v0.5 — TYPE HIERARCHY
+   Four deliberate levels instead of one flat wall of mono caps:
+     1  page title        30px  sans, heavy, tight
+     2  section heading    20px  sans, semibold, sentence case
+     3  panel heading      15px  sans, semibold, sentence case
+     4  micro-label       9.5px  mono, uppercase, tracked
+   Mono uppercase is now reserved for level 4 only, so it reads as
+   metadata rather than as a competing headline.
+   ════════════════════════════════════════════════════════════ */
+
+/* 1 — page title */
+.head .title h1{font-size:31px;font-weight:800;letter-spacing:-.028em;line-height:1.1}
+.head .title p{font-size:14px;line-height:1.55;margin-top:9px;color:var(--ink-soft);max-width:62ch}
+.leaf-badge{width:38px;height:38px;border-radius:12px;font-size:19px}
+
+/* 2 — section heading: a real heading, not a hairline caption.
+   Sized to carry the page on its own — these are the signposts a reader
+   scans before they read a single number. */
+.sec-label{
+  font-family:var(--sans);font-size:29px;font-weight:800;letter-spacing:-.028em;
+  text-transform:none;color:var(--ink);margin:52px 2px 18px;
+  display:flex;align-items:baseline;gap:14px;line-height:1.15;
+}
+.sec-label::after{content:"";flex:1;height:1px;background:var(--line);align-self:center}
+.sec-label .sl-note{
+  font-family:var(--sans);font-size:12.5px;font-weight:500;letter-spacing:0;
+  color:var(--mut);flex:none;max-width:52ch;
+}
+/* the first section sits right under the filter bar — don't double the gap */
+.kpis + *, .sec-label:first-of-type{margin-top:30px}
+
+/* 3 — panel heading */
+.panel h3{
+  font-family:var(--sans);font-size:20px;font-weight:750;letter-spacing:-.02em;
+  text-transform:none;color:var(--ink);margin-bottom:5px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+}
+.panel h3 .hint{
+  font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--mut2);text-align:right;
+}
+.panel .sub{font-size:12.5px;line-height:1.55;color:var(--mut);margin-bottom:15px;max-width:66ch}
+.drill .dh h2{font-size:22px;font-weight:800;letter-spacing:-.022em}
+.mcat h4{font-size:15px;font-weight:700;letter-spacing:-.012em}
+.ob h2{font-size:25px;font-weight:800;letter-spacing:-.024em}
+
+/* 4 — micro-labels keep the mono voice */
+.kpi .k,.mchip .ml,.filters label,.lf-gh,.ob-sec,#tbl thead th,.cx .ck,.cx-card .cxk{
+  font-family:var(--mono);text-transform:uppercase;
+}
+
+/* ════════════════════════════════════════════════════════════
+   v0.5 — BY-PROJECT CARD
+   One line per project instead of two, so eight projects occupy the
+   same vertical space as the chart beside them. Rank, name, bar,
+   value and share read left-to-right on a single baseline.
+   ════════════════════════════════════════════════════════════ */
+.panel h3 .metricseg{border-radius:8px}
+.metricseg button{font-size:9.5px;padding:6px 9px;letter-spacing:.07em}
+.pbar{display:flex;flex-direction:column;gap:2px;margin-top:2px}
+.prow{
+  display:grid;grid-template-columns:16px minmax(96px,1.9fr) minmax(44px,1fr) auto;
+  align-items:center;gap:10px;padding:7px 8px;border-radius:9px;cursor:pointer;
+  transition:background .14s var(--ease),box-shadow .14s var(--ease);
+  border:1px solid transparent;
+}
+.prow:hover{background:var(--card2)}
+.prow:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+.prow.sel{background:var(--card2);border-color:var(--teal);box-shadow:var(--e1)}
+.prow .rk{font-family:var(--mono);font-size:10px;color:var(--mut2);text-align:right;font-variant-numeric:tabular-nums}
+.prow.sel .rk{color:var(--teal)}
+.prow .pn{
+  font-size:12.5px;font-weight:600;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* these are spans inside a grid row — they need to be blocks to take a height */
+.prow .track{display:block;height:8px;border-radius:5px;background:var(--line-soft);overflow:hidden}
+.prow .fill{display:block;height:100%;border-radius:5px;min-width:3px}
+.prow .pv{
+  display:flex;align-items:baseline;gap:7px;justify-content:flex-end;
+  font-family:var(--mono);font-size:11.5px;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.prow .pv .pc{font-size:10px;color:var(--mut2);min-width:30px;text-align:right}
+.pbar-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  margin-top:11px;padding-top:10px;border-top:1px solid var(--line-soft);
+  font-size:11.5px;color:var(--mut);
+}
+.pbar-foot b{color:var(--ink-soft)}
+.pbar-foot .morebtn{width:auto;margin:0;padding:6px 11px;font-size:10px}
+
+/* ════════════════════════════════════════════════════════════
+   v0.5 — PER-SESSION CHART: dates + click-through detail
+   ════════════════════════════════════════════════════════════ */
+#tsChart rect.bar{cursor:pointer}
+#tsChart rect.bar:hover{opacity:.75}
+#tsChart rect.bar.sel{stroke:var(--ink);stroke-width:1.4;paint-order:stroke}
+.ts-detail{
+  margin-top:12px;padding:12px 13px;border-radius:11px;
+  border:1px solid var(--line);background-image:var(--wash);
+  font-size:12px;color:var(--ink-soft);line-height:1.55;min-height:62px;
+}
+.ts-detail .td-h{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:5px}
+.ts-detail .td-d{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut2)}
+.ts-detail .td-p{font-size:13px;font-weight:700;color:var(--ink)}
+.ts-detail .td-n{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--leaf);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ts-detail .td-c{
+  color:var(--mut);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  line-clamp:2;overflow:hidden;
+}
+.ts-detail .td-empty{color:var(--mut2);font-style:italic}
+.ts-detail .td-sw{width:9px;height:9px;border-radius:3px;display:inline-block;vertical-align:middle;margin-right:1px}
+
+/* ════════════════════════════════════════════════════════════
+   v0.5 — ELEMENTAL MOTION
+   Energy pulses, water ripples, carbon drifts. Slow enough to read
+   as texture rather than as movement competing with the numbers.
+   Everything here is paused wholesale by prefers-reduced-motion.
+   ════════════════════════════════════════════════════════════ */
+.cx .cic{position:relative;overflow:visible;background:none!important}
+.cx .cic .motif{width:38px;height:38px;display:block;overflow:visible}
+.cx-energy .cic{background:rgba(112,130,113,.14)!important;border-radius:11px}
+.cx-water  .cic{background:rgba(110,139,144,.14)!important;border-radius:11px}
+.cx-carbon .cic{background:rgba(201,161,90,.16)!important;border-radius:11px}
+
+@keyframes eidPulse{0%{transform:scale(.7);opacity:.55}70%{opacity:0}100%{transform:scale(1.5);opacity:0}}
+@keyframes eidFlicker{0%,100%{opacity:1}45%{opacity:.62}55%{opacity:1}}
+@keyframes eidDrift{from{transform:translateX(-8px)}to{transform:translateX(8px)}}
+@keyframes eidWave{from{transform:translateX(0)}to{transform:translateX(40px)}}
+@keyframes eidBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.6px)}}
+
+.motif-energy .m-pulse{fill:none;stroke:var(--teal);stroke-width:1.4;transform-origin:20px 20px;animation:eidPulse 3.2s var(--ease) infinite}
+.motif-energy .m-pulse2{animation-delay:1.6s}
+.motif-energy .m-bolt{fill:var(--teal);animation:eidFlicker 4.4s ease-in-out infinite}
+
+.motif-water .m-drop-o{fill:none;stroke:var(--sky);stroke-width:1.5;opacity:.85;transform-origin:20px 22px;animation:eidBob 4.2s ease-in-out infinite}
+.motif-water .m-wave{fill:var(--sky);opacity:.42;animation:eidWave 4.6s linear infinite}
+.motif-water .m-wave2{opacity:.26;animation-duration:6.8s;animation-direction:reverse}
+
+.motif-carbon .m-cloud{fill:var(--amber);opacity:.5;animation:eidDrift 7s ease-in-out infinite alternate}
+.motif-carbon .m-wisp{fill:none;stroke:var(--amber);stroke-width:2;stroke-linecap:round;opacity:.34;animation:eidDrift 9s ease-in-out infinite alternate-reverse}
+.motif-carbon .m-wisp2{opacity:.22;animation-duration:11s;animation-delay:-3s}
+
+/* KPI cards get the same three motifs as a quiet corner texture */
+.kpi{position:relative}
+.kpi .kpi-motif{
+  position:absolute;right:-20px;bottom:-16px;width:92px;height:92px;
+  pointer-events:none;opacity:.075;overflow:hidden;
+  transition:opacity .25s var(--ease);
+}
+html[data-theme=dark] .kpi .kpi-motif{opacity:.12}
+.kpi:hover .kpi-motif{opacity:.14}
+html[data-theme=dark] .kpi:hover .kpi-motif{opacity:.19}
+.kpi .kpi-motif *{transition:opacity .2s var(--ease)}
+.kpi-motif .km-ring{fill:none;stroke-width:2;transform-origin:52px 52px;animation:eidPulse 4.6s var(--ease) infinite}
+.kpi-motif .km-ring2{animation-delay:2.3s}
+.kpi-motif .km-wave{animation:eidWave 7.5s linear infinite}
+.kpi-motif .km-wave2{animation-duration:11s;animation-direction:reverse;opacity:.6}
+.kpi-motif .km-haze{animation:eidDrift 9s ease-in-out infinite alternate}
+.kpi-motif .km-haze2{animation-duration:12s;animation-direction:alternate-reverse}
+.kpi-motif .km-haze3{animation-duration:10.5s;animation-delay:-3s}
+
+/* ════════════════════════════════════════════════════════════
+   v0.5 — SHARE
+   ════════════════════════════════════════════════════════════ */
+.share-btn{font-size:12px;padding:8px 13px}
+.ob.sharebox{max-width:560px}
+.share-preview{
+  margin:16px 0 4px;border-radius:16px;overflow:hidden;
+  border:1px solid var(--line);box-shadow:var(--e2);background:var(--card2);
+  aspect-ratio:1/1;max-width:340px;margin-left:auto;margin-right:auto;
+}
+.share-preview canvas{display:block;width:100%;height:100%}
+.share-meta{
+  text-align:center;font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--mut2);margin:12px 0 2px;
+}
+
+/* ════════════════════════════════════════════════════════════
+   v0.5 — RESPONSIVE
+   Desktop stays the designed case; these rules only stop things
+   from overflowing or colliding on a phone.
+   ════════════════════════════════════════════════════════════ */
+/* NOT overflow-x:hidden. Setting it on html/body makes body a scroll
+   container, which silently disables position:sticky on every descendant —
+   the header was scrolling off the page because of this one line. overflow-x
+   is only settable together with a sticky-safe overflow-y, so the sideways
+   guard moves to the individual offenders instead (see the min-width:0 rules
+   further up) and the page keeps a normal scroll root. */
+html,body{max-width:100%}
+
+@media(max-width:900px){
+  .sec-label{flex-wrap:wrap;gap:4px 12px}
+  .sec-label .sl-note{flex-basis:100%;order:3}
+  .sec-label::after{order:2}
+}
+@media(max-width:760px){
+  .wrap{padding:18px 14px 64px}
+  .head{align-items:flex-start;gap:12px}
+  .head .title h1{font-size:25px;gap:9px}
+  .head .title p{font-size:13px}
+  .sec-label{font-size:24px;margin:38px 2px 14px}
+  .toolbar{width:100%}
+  .sh-nav{gap:3px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .sh-nav::-webkit-scrollbar{display:none}
+  .sh-nav a{padding:6px 10px;font-size:12px}
+  .sh-nav .navspace{display:none}
+  .filters{gap:9px}
+  .filters .grp{flex:1 1 100%}
+  .filters select,.filters input[type=search]{width:100%;min-width:0}
+  .filters .spacer{display:none}
+  /* the session table is the one thing that genuinely needs to scroll sideways */
+  .tbl-wrap{max-height:none;overflow-x:auto}
+  #tbl{min-width:720px}
+  #tbl td.ctx{max-width:320px}
+  .mit-cats{grid-template-columns:1fr}
+  .lf-grid{grid-template-columns:1fr}
+  .drill .mini{grid-template-columns:repeat(2,1fr)}
+  .ob{padding:22px 18px;max-height:88vh}
+  .ob h2{font-size:21px}
+  .share-preview{max-width:100%}
+  .ob-cta{flex-wrap:wrap}
+  .ob-cta .btn{flex:1 1 auto}
+}
+@media(max-width:520px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .kpi{padding:14px 13px 13px}
+  .kpi .v{font-size:23px}
+  .kpi .cmp{font-size:11px;min-height:0}
+  .kpi.gradecard{grid-column:1 / -1}
+  .kpi .kpi-motif{width:80px;height:80px}
+  .compare{gap:10px}
+  .cx{padding:12px}
+  .prow{grid-template-columns:16px minmax(60px,1fr) auto;gap:8px;padding:7px 6px}
+  .prow .track{display:none}
+  .panel{padding:15px 14px}
+  .panel h3{font-size:17px}
+  .metricseg{width:100%;justify-content:space-between}
+  .metricseg button{flex:1;text-align:center;padding:6px 4px}
+  .mchip{padding:6px 9px;min-width:0;flex:1 1 auto}
+  .mchip .mv{font-size:14px}
+  .lf-actions{flex-direction:column;align-items:stretch}
+  .ts-detail .td-n{margin-left:0;width:100%}
+  footer{font-size:11.5px}
+}
+@media(max-width:400px){
+  .wrap{padding:16px 11px 56px}
+  .head .title h1{font-size:22px}
+  .sec-label{font-size:21px}
+  .kpis{grid-template-columns:1fr}
+  .kpi .v{font-size:26px}
+  .btn{padding:9px 12px;font-size:12px}
+  .ob{padding:20px 14px}
+  .ob-cta .btn{flex:1 1 100%}
+}
+/* coarse pointers get real tap targets */
+@media(pointer:coarse){
+  .prow{min-height:40px}
+  .seg button{padding:10px 13px}
+  .legend .li{min-height:32px}
+}
+
+/* ---- v0.5 overflow guards ----
+   Grid and flex children default to a min-content floor, which let the
+   range segmented control and the methodology tables push the page wider
+   than the viewport on a phone. These give them permission to shrink. */
+.sh-roll > *{min-width:0}
+.rangebar,.rangemeta,.mini{min-width:0;max-width:100%}
+#rangeSeg{max-width:100%}
+.filters .grp{min-width:0}
+.kpi,.panel,.cx,.cx .cbody,.mcat{min-width:0}
+.cx .cbig,.cx .cval{overflow-wrap:anywhere}
+
+@media(max-width:760px){
+  /* the two methodology tables carry long labels and fixed-width inputs —
+     let each column scroll on its own rather than widening the page */
+  .meth .grid.two > div{overflow-x:auto;min-width:0}
+  .meth table{min-width:340px}
+  /* a 100-row table shouldn't produce a 20,000px page on a phone */
+  .tbl-wrap{max-height:70vh}
+  .drill .cols{grid-template-columns:1fr}
+}
+
+/* ---- v0.5 print corrections ----
+   The section-scoped print rules force display:block on [data-sec]; section
+   headings are flex rows, so restore that for whichever section is printing.
+   Motion motifs and the share button have no business on paper. */
+@media print{
+  body[data-print="overview"] .sec-label[data-sec="overview"],
+  body[data-print="trends"]   .sec-label[data-sec="trends"],
+  body[data-print="life"]     .sec-label[data-sec="life"],
+  body[data-print="sessions"] .sec-label[data-sec="sessions"],
+  body[data-print="actions"]  .sec-label[data-sec="actions"],
+  body[data-print="method"]   .sec-label[data-sec="method"],
+  body[data-print="all"]      .sec-label{display:flex!important}
+  .kpi .kpi-motif,.cx .cic .motif{display:none!important}
+  .cx .cic{display:none!important}
+  .share-btn,#shareScrim{display:none!important}
+  .ts-detail,.pbar,.prow{break-inside:avoid}
+  .tbl-wrap{max-height:none!important;overflow:visible!important}
+}
+@media print{
+  /* paper can't be clicked — drop the affordances and the controls */
+  .click-hint,.metricseg,.morebtn,#projMore{display:none!important}
+}
+
+/* ════════════════════════════════════════════════════════════
+   v0.6 — POLISH
+   Six fixes, each in service of one idea: the numbers should be
+   the loudest thing on the page, and everything else should be
+   quiet enough to let them be.
+     1  grade card    calm surface, tinted letter
+     2  KPI rhythm    equal heights, visible accent
+     3  trends row    panels share a baseline
+     4  prose hints   sentences leave the mono-caps voice
+     5  dark theme    surfaces that actually separate
+     6  consolidation single source of truth per rule
+   ════════════════════════════════════════════════════════════ */
+
+/* ---------- 1 · grade card ----------
+   One filled surface anchors the KPI row. It stays forest at every grade;
+   the letter and the bar carry the verdict. A D shouldn't repaint the page. */
+.kpi.gradecard{
+  background:var(--grade-grad);background-image:var(--grade-grad);
+  border:none;color:var(--grade-ink);
+  box-shadow:0 10px 26px rgba(27,59,43,.22), inset 0 1px 0 rgba(255,255,255,.10);
+}
+.kpi.gradecard::before{display:none}
+.kpi.gradecard:hover{box-shadow:0 16px 38px rgba(27,59,43,.30), inset 0 1px 0 rgba(255,255,255,.12)}
+.kpi.gradecard .k{color:rgba(237,242,237,.70)}
+.kpi.gradecard .dot{background:var(--grade-ink)!important;box-shadow:0 0 0 3px rgba(237,242,237,.16)}
+.kpi.gradecard .gletter{
+  font-size:44px;font-weight:800;letter-spacing:-.045em;line-height:1;
+  margin:10px 0 4px;color:var(--g-tint,var(--grade-ink));
+}
+.kpi.gradecard .gscore{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:rgba(237,242,237,.62);font-weight:600;
+}
+.kpi.gradecard .gbar{height:5px;border-radius:4px;background:rgba(255,255,255,.16);overflow:hidden;margin:11px 0 9px}
+.kpi.gradecard .gbar i{display:block;height:100%;border-radius:4px;width:0;background:var(--g-tint,var(--grade-ink))!important;transition:width .55s var(--ease)}
+.kpi.gradecard .gwhy{font-size:11.5px;line-height:1.55;color:rgba(237,242,237,.80)}
+/* The verdict tint — the only thing that changes with the grade. These use a
+   g-* namespace, NOT the gr-* chip classes: gr-* carry !important background
+   and colour for the rollup chip, and reusing them here repainted the whole
+   card pink and made every line of it unreadable. */
+.kpi.gradecard.g-a{--g-tint:#B7E0BE}
+.kpi.gradecard.g-b{--g-tint:#CFE0A4}
+.kpi.gradecard.g-c{--g-tint:#EBCE93}
+.kpi.gradecard.g-d{--g-tint:#EFB48F}
+.kpi.gradecard.g-f{--g-tint:#F0A08D}
+
+/* the matching rollup chip: tinted type on a neutral chip, not a filled block */
+.mchip.gradechip{
+  align-items:center;justify-content:center;min-width:62px;padding:7px 13px;
+  border-width:1px;background:var(--card)!important;background-image:var(--wash)!important;
+}
+.mchip.gradechip .mv{font-size:19px;font-weight:800;line-height:1}
+.mchip.gr-a{color:#3E6B4A!important;border-color:#B4CDBB!important}
+.mchip.gr-b{color:#59742F!important;border-color:#C7D3AC!important}
+.mchip.gr-c{color:#8A6B25!important;border-color:#DFCFA8!important}
+.mchip.gr-d{color:#A4552F!important;border-color:#E4C1AA!important}
+.mchip.gr-f{color:#933325!important;border-color:#E0B4A9!important}
+html[data-theme=dark] .mchip.gr-a{color:#9DC7A6!important;border-color:#3E6B4A!important;background:var(--card)!important}
+html[data-theme=dark] .mchip.gr-b{color:#C0D08A!important;border-color:#5E7A46!important;background:var(--card)!important}
+html[data-theme=dark] .mchip.gr-c{color:#E0C284!important;border-color:#8F6F2B!important;background:var(--card)!important}
+html[data-theme=dark] .mchip.gr-d{color:#E4A57F!important;border-color:#B5653D!important;background:var(--card)!important}
+html[data-theme=dark] .mchip.gr-f{color:#E08F7C!important;border-color:#A33B2B!important;background:var(--card)!important}
+
+/* ---------- 2 · KPI rhythm ----------
+   Cards were ragged because .cmp wraps to two or three lines and nothing
+   reserved a baseline. Grid rows give every card the same internal
+   skeleton, so the six values land on one line and the six captions on
+   another regardless of how long the copy runs. */
+.kpis{align-items:stretch}
+.kpi{display:grid;grid-template-rows:auto auto 1fr;height:100%}
+.kpi .cmp{min-height:2.9em;align-self:start;margin-top:9px}
+.kpi.gradecard{grid-template-rows:auto auto auto auto 1fr}
+/* the accent bar was 3px of near-white on white — give it something to say */
+.kpi::before{
+  height:3px;opacity:1;
+  background:linear-gradient(90deg,var(--accent,var(--teal)) 0%,var(--accent,var(--teal)) 34%,transparent 96%);
+}
+
+/* ---------- 3 · trends row ----------
+   align-items:start left the shorter panel floating with ~180px of dead
+   space beneath it. Panels in a two-up row now share a baseline, and the
+   by-project footer is pinned to the bottom so the extra height is spent
+   on breathing room rather than on a hole. */
+/* First attempt stretched the short panel to match the chart, which just
+   moved the empty space inside the card — content clustered at the top with
+   a void above the footer. Panels stay content-sized (as they were); the
+   imbalance is fixed at the source by shortening the over-tall chart and
+   giving the ranked rows room to breathe, so the two land close in height.
+   With a real log the project list is longer and fills this naturally. */
+.panel-proj .pbar{gap:4px}
+.panel-proj .prow{padding:10px 8px}
+
+/* ---------- 4 · prose hints ----------
+   Mono uppercase is a label voice. A full sentence set in it reads as
+   shouting and is genuinely slower to parse, so sentences opt out and
+   only the numeric readouts keep the mono treatment. */
+.panel h3 .hint.prose{
+  font-family:var(--sans);font-size:11.5px;font-weight:500;
+  letter-spacing:0;text-transform:none;color:var(--mut);
+}
+
+/* ---------- 5 · surfaces ----------
+   A hairline top highlight is what sells a card as a raised surface in
+   dark mode; without it the border does all the work and does it badly. */
+html[data-theme=dark] .panel,
+html[data-theme=dark] .kpi:not(.gradecard),
+html[data-theme=dark] .mchip,
+html[data-theme=dark] .cx,
+html[data-theme=dark] .mcat,
+html[data-theme=dark] .cx-card{box-shadow:var(--e1), inset 0 1px 0 rgba(255,255,255,.045)}
+html[data-theme=dark] .sec-label::after{background:var(--line)}
+/* the corner motifs read as smudges once the surfaces lift — pull them back */
+html[data-theme=dark] .kpi .kpi-motif{opacity:.085}
+html[data-theme=dark] .kpi:hover .kpi-motif{opacity:.15}
+
+/* ---------- 6 · consolidation ----------
+   .mini was declared twice with conflicting display values (grid, then
+   flex) and .delta twice with different shapes. The later rule won by
+   source order, which made both look like dead code. These are the
+   single surviving definitions; the earlier ones are now inert. */
+.mini{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;min-width:0;max-width:100%}
+.drill .mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:8px}
+.delta{
+  display:inline-block;vertical-align:middle;margin-left:9px;
+  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.04em;
+  padding:3px 8px;border-radius:20px;border:1px solid transparent;
+}
+
+/* the endpoint dot on the cumulative line shouldn't animate in with the path */
+#cumChart circle{animation:eidFade .5s var(--ease) .7s both}
+
+/* ════════════════════════════════════════════════════════════
+   v0.7 — STICKY HEADER + SECTION TRACKING
+   The header now genuinely pins (see the overflow-x note above for
+   why it never did), and sheds its bulk once you scroll past it:
+   full height at the top, a slim nav+chips bar thereafter, with the
+   range controls collapsed behind a pill that shows the current range.
+   ════════════════════════════════════════════════════════════ */
+.stickyhead{
+  top:8px;z-index:70;
+  transition:padding .22s var(--ease),box-shadow .22s var(--ease),
+             border-radius .22s var(--ease),background .22s var(--ease);
+}
+/* lifted off the page once pinned, so content scrolling underneath
+   reads as *underneath* rather than as a collision */
+.stickyhead.condensed{
+  padding:6px 10px;border-radius:13px;
+  box-shadow:var(--e2),0 1px 0 var(--line) inset;
+  background:var(--glass);
+}
+.stickyhead.condensed .sh-roll{border-top:none;padding-top:0;margin-top:2px;row-gap:0}
+.stickyhead.condensed .sh-nav a{padding:6px 11px}
+/* the range controls are the bulky part — they fold away and come back
+   on demand rather than costing a fifth of the viewport all the way down */
+.stickyhead.condensed .rangebar,
+.stickyhead.condensed .rangemeta,
+.stickyhead.condensed .customrow{display:none}
+.stickyhead.condensed.sh-expanded .rangebar,
+.stickyhead.condensed.sh-expanded .rangemeta{display:flex}
+.stickyhead.condensed.sh-expanded .customrow:not(.hidden){display:flex}
+.stickyhead.condensed .mini{margin-top:0}
+.stickyhead.condensed .mchip{padding:5px 10px}
+.stickyhead.condensed .mchip .mv{font-size:13.5px}
+.stickyhead.condensed .mchip .ml{font-size:8.5px}
+
+/* the pill only exists while condensed */
+.rangepill{display:none;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
+  text-transform:uppercase;white-space:nowrap}
+.stickyhead.condensed .rangepill{display:inline-block}
+.stickyhead.condensed.sh-expanded .rangepill{border-color:var(--teal);color:var(--teal)}
+
+/* ---------- AI-share pill ----------
+   The one number worth carrying with the reader everywhere on the page:
+   how much of their whole footprint is actually AI. */
+.aipill{
+  display:inline-flex;align-items:baseline;gap:6px;white-space:nowrap;
+  border-color:var(--teal);
+  background:linear-gradient(180deg,rgba(43,138,122,.16),rgba(43,138,122,.06));
+}
+.aipill:hover{background:linear-gradient(180deg,rgba(43,138,122,.26),rgba(43,138,122,.1))}
+.aipill .ap-v{font-family:var(--sans);font-size:14px;font-weight:800;letter-spacing:-.02em;color:var(--teal)}
+.aipill .ap-l{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--mut);
+}
+@media(max-width:760px){
+  /* On a phone .sh-nav becomes a horizontal scroller, which used to carry the
+     share pill off-screen — the one number people came for. Pin it to the right
+     edge of the scrollport and let the nav links scroll underneath it. */
+  .aipill{
+    order:99;position:sticky;right:0;z-index:3;padding:6px 11px;
+    background:var(--card);border-color:var(--teal);
+    box-shadow:-14px 0 14px -8px var(--card), 0 0 0 1px var(--teal) inset;
+  }
+  .aipill .ap-l{display:none}          /* keep the number, drop the caption */
+  .aipill .ap-v{font-size:15px}
+}
+@media print{ .aipill{display:none!important} }
+
+/* ---------- active section ----------
+   The old treatment was a filled pill that only appeared once the observer
+   fired, so at the top of the page nothing was marked at all. Now the
+   current section is always marked, and marked with a rule beneath the
+   label rather than a heavy block — six filled pills competing with the
+   Export button was the reason it read as noise. */
+.sh-nav a{position:relative;transition:color .18s var(--ease),background .18s var(--ease)}
+.sh-nav a.active{background:transparent;color:var(--ink);font-weight:700}
+.sh-nav a.active::after{
+  content:"";position:absolute;left:11px;right:11px;bottom:2px;height:2px;
+  border-radius:2px;background:var(--moss);
+}
+html[data-theme=dark] .sh-nav a.active::after{background:var(--leaf)}
+.sh-nav a:hover{background:var(--card2);color:var(--ink)}
+.sh-nav a:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+
+/* anchor offsets follow the condensed height, not the expanded one —
+   jumping to a section shouldn't bury its heading under the bar */
+#kpis,#trends,#life,#sessions,#actions,#method{scroll-margin-top:118px}
+
+@media(max-width:760px){
+  .stickyhead.condensed .mini{display:none}
+  .stickyhead.condensed.sh-expanded .mini{display:flex}
+  #kpis,#trends,#life,#sessions,#actions,#method{scroll-margin-top:96px}
+}
+
+/* ---------- onboarding: short by default ----------
+   The modal opened with ~12 blocks of reference material above the three
+   buttons that actually start the tool. Those buttons now sit directly
+   under one sentence; the reference lives in a disclosure for the people
+   who want it. */
+.ob-cta{margin-top:20px}
+.ob-more{
+  margin-top:18px;border-top:1px solid var(--line-soft);padding-top:4px;
+}
+.ob-more > summary{
+  cursor:pointer;list-style:none;padding:10px 2px;
+  font-size:12.5px;font-weight:600;color:var(--ink-soft);
+  font-family:var(--sans);letter-spacing:0;text-transform:none;
+  display:flex;align-items:center;gap:8px;
+}
+.ob-more > summary::-webkit-details-marker{display:none}
+.ob-more > summary::before{
+  content:"›";font-family:var(--mono);font-size:15px;color:var(--mut);
+  transition:transform .18s var(--ease);display:inline-block;
+}
+.ob-more[open] > summary::before{transform:rotate(90deg)}
+.ob-more > summary:hover{color:var(--ink)}
+.ob-more-body{padding-bottom:4px}
+.ob-more-body .ob-sec:first-child{margin-top:6px}
+.ob-p{font-size:12.5px;line-height:1.65;color:var(--ink-soft);margin:0 0 10px}
+.ob-p .path,.ob-p .kbd{white-space:nowrap}
+.ob-more-body pre{
+  margin:6px 0 0;background:var(--bg);border:1px solid var(--line);border-radius:8px;
+  padding:10px;font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);
+  overflow:auto;line-height:1.5;
+}
+.ob-foot{margin-top:14px}
+/* the modal is short now — keep it that way on small screens too */
+.ob{max-height:90vh;overflow-y:auto}
+
+
+/* ════════════════════════════════════════════════════════════
+   v0.9 — ANSWER FIRST
+   Three changes from the Oct 29 critique: lead with the verdict, stop the
+   grade card outranking everything, and lift the small muted type off the
+   cream ground where it was failing WCAG AA.
+   ════════════════════════════════════════════════════════════ */
+
+/* ---- verdict band: the page's thesis, above the instrument ---- */
+.verdict{
+  margin:6px 0 14px;padding:20px 22px;border-radius:16px;
+  background:var(--wash-panel);border:1px solid var(--hair);box-shadow:var(--e1);
+}
+.verdict .vd-lead{
+  margin:0;font-size:26px;line-height:1.25;font-weight:600;letter-spacing:-.015em;color:var(--ink);
+  text-wrap:balance;max-width:34ch;
+}
+.verdict .vd-lead strong{font-weight:800;color:var(--leaf)}
+.verdict .vd-sub{margin:9px 0 0;font-size:14.5px;line-height:1.5;color:var(--ink-soft);max-width:62ch}
+.verdict .vd-sub b{color:var(--ink);font-weight:700}
+.verdict .vd-trend{color:var(--mut)}
+.vd-link{
+  background:none;border:0;padding:0;font:inherit;color:var(--leaf);
+  font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer;
+}
+.vd-link:hover{color:var(--forest)}
+@media(max-width:760px){
+  .verdict{padding:16px 16px;margin:4px 0 12px}
+  .verdict .vd-lead{font-size:21px}
+  .verdict .vd-sub{font-size:14px}
+}
+
+/* ---- grade card, demoted ----
+   It was the one filled surface in the row, which handed top visual rank to
+   the least trustworthy number on the page. Same surface as its siblings now,
+   carrying its state in an accent rail instead of a full gradient. */
+.kpi.gradecard{background:var(--card);color:var(--ink)}
+.kpi.gradecard::after{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--moss);
+}
+.kpi.gradecard.g-a::after{background:var(--good)}
+.kpi.gradecard.g-b::after{background:var(--teal)}
+.kpi.gradecard.g-c::after{background:var(--warn)}
+.kpi.gradecard.g-d::after,.kpi.gradecard.g-f::after{background:var(--bad)}
+.kpi.gradecard .gletter{color:var(--ink)}
+.kpi.gradecard .gscore,.kpi.gradecard .gwhy{color:var(--ink-soft)}
+.kpi.gradecard .k{color:var(--mut)}
+/* the suspended component, stated rather than silently folded away */
+.kpi.gradecard .gsusp{
+  margin-top:8px;font-family:var(--mono);font-size:10.5px;line-height:1.45;color:var(--mut);
+  border-top:1px dashed var(--line);padding-top:7px;
+}
+
+/* ---- contrast + size floors (WCAG AA on the cream ground) ----
+   Measured before: .cmp 4.35:1 @11.5px, .sl-note 4.2:1 @12.5px,
+   .mini .ml 4.35:1 @9px, range pills 3.85:1 @10.5px — all under 4.5:1. */
+:root{ --mut:#5F6459; --mut2:#73786C; }
+.kpi .cmp{font-size:12.5px;color:var(--ink-soft)}
+.kpi .cmp .cmp-note{color:var(--mut);font-size:11.5px}
+.mini .ml{font-size:11px;letter-spacing:.1em}
+.sec-label .sl-note{color:var(--ink-soft)}
+.rangebar .seg button{font-size:11.5px}
+
+/* ---- touch targets: 28px pills were under the 44px guideline ---- */
+@media(max-width:760px){
+  .rangebar .seg button{min-height:44px;padding-top:0;padding-bottom:0;display:inline-flex;align-items:center}
+  .sh-nav a{min-height:44px;display:inline-flex;align-items:center}
+  .cmp-toggle{min-height:44px;display:inline-flex;align-items:center}
+}
+
+/* ---- mobile: get a number above the fold ----
+   The first KPI card used to start at y=882 on a 390x844 phone — one full
+   screen of chrome before any substance. The verdict band now carries the
+   answer, and the filters sit below the cards they filter. */
+@media(max-width:760px){
+  .head .title p{display:none}           /* the subtitle restates the title */
+  .filters{margin-top:18px}
+}
+
+/* the qualifier is a footnote to the comparison, not part of it */
+.kpi .cmp .cmp-note{display:block;margin-top:3px}
+/* The pill and the verdict band state the same percentage. At the top of the
+   page the band says it better, so the pill waits until the band has scrolled
+   away and the condensed header is carrying the page on its own. */
+.stickyhead:not(.condensed) .aipill{display:none}
+
+/* ---- measurement audit section ---------------------------------------
+   Static narrative living inside a live tool. It borrows the panel surface
+   but states plainly that it does not answer to the range picker. */
+.auditcards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0 6px}
+.ac{background:var(--card2);border:1px solid var(--line);border-radius:13px;padding:14px 15px;min-width:0}
+.ac .ack{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
+.ac .acn{font-size:27px;font-weight:700;letter-spacing:-.02em;line-height:1;margin:7px 0 6px;color:var(--leaf)}
+.ac.warn .acn{color:var(--terra)}
+.ac .acd{font-size:12.5px;line-height:1.5;color:var(--ink-soft)}
+.auditp{font-size:14px;line-height:1.62;color:var(--ink-soft);max-width:72ch;margin:13px 0}
+.auditp b{color:var(--ink)}
+.audittbl{width:100%;border-collapse:collapse;font-size:13.5px;margin:10px 0}
+.audittbl th{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--mut);text-align:left;font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line)}
+.audittbl td{padding:10px;border-bottom:1px solid var(--line-soft);vertical-align:top;line-height:1.45;color:var(--ink-soft)}
+.audittbl td:first-child{color:var(--ink);font-weight:600}
+.qpill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;
+  padding:3px 8px;border-radius:999px;white-space:nowrap}
+.qpill.ok{background:rgba(62,94,74,.13);color:var(--leaf)}
+.qpill.est{background:rgba(201,161,90,.18);color:#8A6B2E}
+.auditplan,.auditlog{margin:12px 0;padding-left:20px}
+.auditplan li,.auditlog li{font-size:14px;line-height:1.6;color:var(--ink-soft);margin:9px 0;max-width:72ch}
+.auditplan li b,.auditlog li b{color:var(--ink)}
+.auditlog{list-style:none;padding-left:0}
+.auditlog li{border-left:2px solid var(--line);padding-left:14px}
+@media(max-width:760px){ .auditcards{grid-template-columns:1fr} }
+
+/* a standing caveat under a time series, not a transient hint */
+.retnote{
+  margin:12px 0 2px;padding:10px 12px;border-radius:10px;
+  background:rgba(201,161,90,.10);border-left:3px solid var(--amber);
+  font-size:12.5px;line-height:1.55;color:var(--ink-soft);
+}
+.retnote b{color:var(--ink)}
+
+/* ============================================================
+   v1.0 — LIQUID GLASS
+   The full Apple treatment (chosen 2026-11-16): deep translucency,
+   vivid tinted backdrop, specular highlights. The previous "Refined earth"
+   palette is kept as the HUE source — the glass is warm sage/clay/amber,
+   not Apple's blue-grey — so the tool still reads as a climate instrument
+   rather than a phone OS.
+
+   The one hard constraint: four WCAG AA contrast failures were measured and
+   fixed in Oct 2026, and translucency is the fastest way to lose them again.
+   Two rules keep them:
+     1. The backdrop is VIVID IN HUE BUT HIGH IN LUMINANCE. Saturated tints,
+        never dark ones. Glass at 55% over a light field stays light, so ink
+        keeps its ratio. A dark vivid field would sink --mut to ~2.4:1.
+     2. Dense text — body prose, the 5,615-row table, chart axis labels —
+        sits on --lg-solid (93%), not on the 55% glass. Decoration gets the
+        translucency; reading surfaces get a backing.
+   Ratios are re-measured by sampling rendered pixels, not computed from
+   tokens, because over a gradient the effective background is positional.
+   ============================================================ */
+
+:root{
+  --lg-blur:22px;
+  --lg-sat:180%;
+  --lg-bg:rgba(255,255,255,.94);      /* standard glass */
+  --lg-bg2:rgba(255,255,255,.80);     /* deeper / chrome glass */
+  --lg-solid:#FFFFFF;   /* reading surfaces — AA backing */
+  --lg-brd:rgba(255,255,255,.70);     /* bright hairline */
+  --lg-brd2:rgba(62,94,74,.16);       /* grounding hairline */
+  --lg-hi:rgba(255,255,255,.90);      /* specular sheen */
+  --lg-sh:0 10px 30px rgba(44,54,44,.13), 0 2px 8px rgba(44,54,44,.07);
+  --lg-inset:inset 0 1px 0 rgba(255,255,255,.78), inset 0 -1px 0 rgba(255,255,255,.16);
+  --lg-ring:0 0 0 1px rgba(255,255,255,.35);
+}
+
+html[data-theme=dark]{
+  --lg-bg:rgba(30,36,32,.94);
+  --lg-bg2:rgba(24,29,26,.84);
+  --lg-solid:#171C19;
+  --lg-brd:rgba(255,255,255,.14);
+  --lg-brd2:rgba(0,0,0,.40);
+  --lg-hi:rgba(255,255,255,.16);
+  --lg-sh:0 14px 38px rgba(0,0,0,.46), 0 3px 10px rgba(0,0,0,.30);
+  --lg-inset:inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.25);
+  --lg-ring:0 0 0 1px rgba(255,255,255,.06);
+}
+
+/* ---- the vivid field the glass refracts -------------------------------
+   Fixed attachment so the blur always has colour under it, including at the
+   top and bottom of a long scroll. Luminance is deliberately held high. */
+body{
+  background:
+    radial-gradient(1200px 680px at 84% -12%, rgba(126,168,132,.58) 0%, rgba(126,168,132,0) 60%),
+    radial-gradient(1000px 620px at -8% 4%,  rgba(224,170,116,.46) 0%, rgba(224,170,116,0) 58%),
+    radial-gradient(900px 760px at 50% 108%, rgba(132,166,172,.44) 0%, rgba(132,166,172,0) 62%),
+    radial-gradient(700px 520px at 18% 62%,  rgba(200,160,190,.26) 0%, rgba(200,160,190,0) 60%),
+    linear-gradient(168deg, #FBFAF5 0%, #F3F5EC 50%, #F7F1E8 100%);
+  background-attachment:fixed;
+  background-repeat:no-repeat;
+}
+html[data-theme=dark] body{
+  background:
+    radial-gradient(1200px 680px at 84% -12%, rgba(58,100,72,.32) 0%, rgba(58,100,72,0) 60%),
+    radial-gradient(1000px 620px at -8% 4%,  rgba(120,82,50,.26) 0%, rgba(120,82,50,0) 58%),
+    radial-gradient(900px 760px at 50% 108%, rgba(52,84,94,.30) 0%, rgba(52,84,94,0) 62%),
+    linear-gradient(168deg, #141815 0%, #10140F 55%, #171310 100%);
+  background-attachment:fixed;
+}
+
+/* ---- the treatment ---------------------------------------------------- */
+.glass{
+  background:var(--lg-bg);
+  backdrop-filter:blur(var(--lg-blur)) saturate(var(--lg-sat));
+  -webkit-backdrop-filter:blur(var(--lg-blur)) saturate(var(--lg-sat));
+  border:1px solid var(--lg-brd);
+  box-shadow:var(--lg-sh), var(--lg-inset), var(--lg-ring);
+  position:relative;
+}
+/* Specular sheen. A gradient rather than an image so it costs nothing and
+   scales with the corner radius it inherits. */
+.glass::before{
+  content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(142deg, var(--lg-hi) 0%, rgba(255,255,255,.18) 26%, transparent 52%);
+  opacity:.55;
+}
+html[data-theme=dark] .glass::before{opacity:.75}
+.glass > *{position:relative;z-index:1}
+
+/* Panels, cards and chrome all take it. Background-image from the old --wash
+   layer has to go or it sits opaque on top of the translucency. */
+.panel,.kpi,.cx,.mcat,.cx-card,.lf-form,.customrow{
+  background:var(--lg-bg)!important;
+  background-image:none!important;
+  backdrop-filter:blur(var(--lg-blur)) saturate(var(--lg-sat));
+  -webkit-backdrop-filter:blur(var(--lg-blur)) saturate(var(--lg-sat));
+  border:1px solid var(--lg-brd);
+  box-shadow:var(--lg-sh), var(--lg-inset), var(--lg-ring);
+  position:relative;
+}
+.panel::before,.kpi::before,.cx::before,.cx-card::before{
+  content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;
+  background:linear-gradient(142deg, var(--lg-hi) 0%, rgba(255,255,255,.16) 24%, transparent 50%);
+  opacity:.5;
+}
+html[data-theme=dark] .panel::before,
+html[data-theme=dark] .kpi::before,
+html[data-theme=dark] .cx::before,
+html[data-theme=dark] .cx-card::before{opacity:.7}
+/* .kpi relies on overflow:hidden to clip its motif; keep that, and make sure
+   real content floats above the sheen. */
+.panel > *,.kpi > *,.cx > *,.cx-card > *{position:relative;z-index:1}
+
+.stickyhead{
+  background:var(--lg-bg2)!important;
+  backdrop-filter:blur(26px) saturate(190%)!important;
+  -webkit-backdrop-filter:blur(26px) saturate(190%)!important;
+  border-bottom:1px solid var(--lg-brd);
+  box-shadow:0 6px 24px rgba(44,54,44,.10), var(--lg-inset);
+}
+
+/* ---- reading surfaces: AA backing, not decoration --------------------
+   Anything carrying dense or small text gets the 93% surface. This is the
+   condition the full-glass choice was made under. */
+.tbl-wrap,
+#tbl,
+.panel.meth table,
+.audittbl,
+.auditplan,
+.auditlog,
+.sessions-wrap,
+.ob-card,
+.bq-body{
+  background:var(--lg-solid);
+  border-radius:12px;
+}
+.auditp,.panel .sub,.ob-p,.ob-lede,.retnote,.acd,.kpi .cmp{
+  /* Prose keeps the panel's glass but gains a touch of opacity behind it so
+     small type never lands on a thin patch of the field. */
+  background:linear-gradient(0deg, var(--lg-solid), var(--lg-solid));
+  border-radius:8px;
+  padding:7px 9px;
+}
+/* Chart text is drawn in SVG and cannot take a background, so the chart host
+   gets an opaque plate instead. */
+#cumChart,#projChart,#tsChart,#mixChart,.chartwrap{
+  background:var(--lg-solid);
+  border-radius:12px;
+}
+
+/* ---- capability and preference fallbacks ----------------------------- */
+@supports not ((backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px))){
+  .panel,.kpi,.cx,.mcat,.cx-card,.lf-form,.customrow,.stickyhead,.glass{
+    background:var(--lg-solid)!important;
+  }
+  .glass::before,.panel::before,.kpi::before,.cx::before,.cx-card::before{display:none}
+}
+@media (prefers-contrast:more){
+  :root{--lg-bg:rgba(255,255,255,.97);--lg-bg2:rgba(255,255,255,.97);--lg-solid:#fff;--lg-brd:var(--line)}
+  html[data-theme=dark]{--lg-bg:rgba(18,22,19,.98);--lg-bg2:rgba(18,22,19,.98);--lg-solid:#121613}
+  .glass::before,.panel::before,.kpi::before,.cx::before,.cx-card::before{display:none}
+  body{background:var(--bg)!important}
+}
+@media (prefers-reduced-transparency:reduce){
+  :root{--lg-bg:rgba(255,255,255,.96);--lg-bg2:rgba(255,255,255,.96)}
+  html[data-theme=dark]{--lg-bg:rgba(20,24,21,.97);--lg-bg2:rgba(20,24,21,.97)}
+}
+
+/* ============================================================
+   COMPARISON CAROUSEL
+   Built for both stepping and swiping. A flex scroll-snap track gives
+   both from one structure, and — the reason it is built this way — the track's
+   height is the height of its TALLEST slide at all times, because flex items
+   share a row. The card therefore cannot change height when the example
+   changes, which was the jump users saw. The old approach reserved 18px via
+   .cval{min-height} and grew whenever a phrase wrapped to two lines; because
+   .compare is a grid, one card wrapping grew all three.
+   ============================================================ */
+.cx .cbody{display:flex;flex-direction:column;min-width:0}
+.cx .ctop{display:flex;align-items:center;justify-content:space-between;gap:8px}
+
+.ctrack{
+  display:flex;
+  gap:0;
+  overflow-x:auto;
+  overflow-y:hidden;
+  scroll-snap-type:x mandatory;
+  overscroll-behavior-x:contain;
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+  margin-top:4px;
+  min-width:0;
+  /* a fixed floor so a one-slide metric matches a five-slide one */
+  min-height:3.1em;
+}
+.ctrack::-webkit-scrollbar{display:none}
+.cslide{
+  flex:0 0 100%;
+  min-width:100%;
+  scroll-snap-align:start;
+  scroll-snap-stop:always;
+  font-size:13px;
+  line-height:1.5;
+  color:var(--ink-soft);
+  display:flex;
+  align-items:flex-start;
+  gap:6px;
+  padding-right:2px;
+}
+.cslide .cq{overflow-wrap:anywhere}
+.cslide b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+
+/* source affordance — the figure behind the comparison, on tap or hover */
+.cslide .csrc{
+  flex:none;margin-top:1px;width:15px;height:15px;border-radius:50%;
+  border:1px solid var(--lg-brd2);background:var(--lg-solid);
+  color:var(--mut);font-size:9.5px;line-height:13px;text-align:center;
+  cursor:help;padding:0;font-family:var(--mono);
+}
+.cslide .csrc:hover,.cslide .csrc:focus-visible{color:var(--ink);border-color:var(--sage);outline:none}
+.csrcbox{
+  position:absolute;z-index:40;left:12px;right:12px;bottom:10px;
+  background:var(--lg-solid);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--lg-brd2);border-radius:10px;
+  padding:8px 10px;font-size:11.5px;line-height:1.5;color:var(--ink-soft);
+  box-shadow:var(--lg-sh);
+  display:none;
+}
+.csrcbox.on{display:block}
+.csrcbox .sfig{font-family:var(--mono);font-size:11px;color:var(--ink);display:block}
+.csrcbox .ssrc{color:var(--mut);display:block;margin-top:2px}
+
+/* nav: arrows + dots, 44px touch targets on phones */
+.cnav{display:flex;align-items:center;gap:6px;flex:none}
+.cnav button{
+  width:22px;height:22px;flex:none;border-radius:7px;
+  border:1px solid var(--lg-brd2);background:var(--lg-solid);
+  color:var(--ink-soft);font-size:13px;line-height:1;cursor:pointer;
+  display:grid;place-items:center;padding:0;transition:.15s var(--ease);
+}
+.cnav button:hover:not(:disabled){color:var(--ink);border-color:var(--sage);transform:translateY(-1px)}
+.cnav button:disabled{opacity:.3;cursor:default}
+.cnav button:focus-visible{outline:2px solid var(--sage);outline-offset:1px}
+.cx .cdots{display:flex;gap:5px;margin:0}
+.cx .cdots i{width:5px;height:5px;border-radius:50%;background:var(--lg-brd2);display:block;transition:.25s;cursor:pointer}
+.cx .cdots i.on{background:var(--sage);width:14px;border-radius:3px}
+.ctrack:focus-visible{outline:2px solid var(--sage);outline-offset:2px;border-radius:8px}
+
+@media(max-width:760px){
+  .cnav button{width:34px;height:34px;font-size:15px}
+  .cx .cdots i{width:7px;height:7px}
+  .cx .cdots i.on{width:18px}
+  .ctrack{min-height:3.4em}
+}
+@media print{
+  .cnav,.cslide .csrc,.csrcbox{display:none!important}
+  .ctrack{overflow:visible!important;min-height:0!important;display:block!important}
+  .cslide{min-width:0!important;flex:none!important}
+  .cslide + .cslide{margin-top:2px}
+  .glass::before,.panel::before,.kpi::before,.cx::before,.cx-card::before{display:none!important}
+}
+
+/* Contrast floors (measured 2026-11-16). The 9.5px card label and the 13px
+   carousel line were the two lowest readings on the page at 4.45 and 4.39;
+   both need 4.5:1. Darkening the ink lifts them past 9:1 and leaves the glass
+   exactly as it is - cheaper than thickening the surface under them. */
+.cx .ck{color:var(--ink-soft)}
+.cslide{color:var(--ink)}
+.cslide .csrc{color:var(--ink-soft)}

@@ -1,0 +1,54 @@
+{
+  "logFileName": ".environmental-impact-log.json",
+  "logLocation": "Root primary, project fallback: the root of your Claude Projects folder when it's connected (one log aggregates every project), otherwise the project folder itself. tools/merge_pending.py reconciles the two.",
+  "seedSourceLabel": "sample data",
+  "skillLoadTokens": 2500,
+  "rates": {
+    "models": {
+      "opus":   { "label": "Claude Opus 4.x",   "inp": 50, "out": 250, "bl": 240 },
+      "sonnet": { "label": "Claude Sonnet 4.x", "inp": 30, "out": 150, "bl": 145 },
+      "haiku":  { "label": "Claude Haiku 4.x",  "inp": 10, "out": 50,  "bl": 50 },
+      "fable":  { "label": "Claude Fable 5",    "inp": 30, "out": 150, "bl": 145 },
+      "other":  { "label": "Other / unknown",   "inp": 30, "out": 150, "bl": 145 }
+    },
+    "waterFactor": 1.7,
+    "gridIntensity": 400
+  },
+  "comparisons": {
+    "phoneChargeWh": 12,
+    "ledBulbW": 10,
+    "bottleMl": 500,
+    "cupMl": 240,
+    "carMileG": 404,
+    "kettleBoilWh": 100
+  },
+  "life": {
+    "gridUS": 367,
+    "elecKwhMo": 881,
+    "gasCfMo": 4717,
+    "gasGPerCf": 54.4,
+    "carGPerMile": 400,
+    "milesYr": 11500,
+    "evKwhPerMile": 0.35,
+    "embodiedIceKg": 6000,
+    "embodiedBevKg": 10000,
+    "vehicleLifeYears": 12,
+    "flightLongKg": 1600,
+    "flightShortKg": 300,
+    "dietKgDay": {
+      "high": 10.24,
+      "medium": 7.3,
+      "low": 5.86,
+      "vegetarian": 3.8,
+      "vegan": 2.47
+    },
+    "otherConsumptionKg": 4000,
+    "usPerCapitaKg": 15000
+  },
+  "_notes": {
+    "rates": "Wh per million tokens (inp=input, out=output, bl=blended). Sources: see skills/impact-tracker/references/methodology.md. NOTE: the 'bl' values sit close to the OUTPUT rate, not an 80/20 input/output mix — blended-rate entries therefore read high. Prefer logging input_tokens/output_tokens and using the split formula.",
+    "waterFactor": "mL of data-center water per Wh (Li et al. 2023, arXiv:2304.03271)",
+    "gridIntensity": "g CO2e per kWh for AI compute. 400 = global average (IEA). Lower it for cleaner regional grids, e.g. ~50 for hydro/nuclear-heavy grids, ~250 for California, ~650 for coal-heavy grids.",
+    "life": "Real-world footprint factors for the Life Footprint panel. gridUS 367 g/kWh = US average generation (EIA 2023). elecKwhMo 881 and gasCfMo 4717 = US household averages (EPA Household Carbon Footprint Calculator); gasGPerCf 54.4 = 0.12 lb CO2 per cubic foot (EPA). carGPerMile 400 and milesYr 11500 (EPA: typical passenger vehicle = 4.6 t CO2/yr). embodiedIceKg 6000 / embodiedBevKg 10000 = manufacturing-phase emissions for a new sedan and an equivalent EV. flightLongKg 1600 = one transatlantic round trip (Wynes & Nicholas 2017); flightShortKg 300 is scaled by distance from that figure and is rougher. dietKgDay = kg CO2e/day standardised to 2000 kcal (Scarborough et al. 2023, Nature Food): high 10.24 and vegan 2.47 are reported directly, low 5.86 is the paper's 57.2% ratio, medium and vegetarian are interpolated between them. otherConsumptionKg 4000 = adjustable residual for goods, services and public infrastructure. usPerCapitaKg 15000 = order-of-magnitude US per-capita total, shown only as a reference line."
+  }
+}

@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+
+# Impact logs carry project names and session descriptions. Never commit one.
+.environmental-impact-log.json
+*.environmental-impact-log*.json
+*-impact-log*.json
+.environmental-impact-log.pending.json
+
+# Personal dashboard builds. dist/dashboard.html is the demo build and IS tracked.
+Environmental-Impact-Dashboard.html
+*.bak-*
+_to_delete/

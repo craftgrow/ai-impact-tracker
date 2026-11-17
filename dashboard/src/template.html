@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Personal AI Usage &amp; Impact</title>
+<!--__STYLES__-->
+<script>
+/* apply saved theme before first paint (prevents flash) */
+(function(){try{
+  var t=localStorage.getItem('eid_theme_v1');
+  if(!t)t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
+  document.documentElement.setAttribute('data-theme',t);
+}catch(e){document.documentElement.setAttribute('data-theme','light');}})();
+</script>
+</head>
+<body>
+
+<!-- ===================== ONBOARDING ===================== -->
+<div class="ob-scrim hidden" id="obScrim" role="dialog" aria-modal="true" aria-labelledby="obTitle">
+  <div class="ob">
+    <button class="ob-x" id="obClose" aria-label="Close">✕</button>
+    <div class="ob-badge">🌍</div>
+    <h2 id="obTitle">Measure the footprint of your AI use</h2>
+    <p class="ob-lede">Every AI session draws real <b>energy</b>, <b>water</b>, and <b>carbon</b>. Load your usage log and see it in numbers you can act on — all in your browser, nothing leaves your device.</p>
+
+    <div class="ob-cta">
+      <button class="btn solid" id="obBaseline">Set up my baseline →</button>
+      <button class="btn" id="obExplore">Just explore the data</button>
+      <button class="btn" id="obPaste">📋 Paste JSON</button>
+      <label class="btn" for="fileIn" id="obImport">⬆ Import file</label>
+    </div>
+    <div class="ob-hint">Six quick questions gets you a number that reflects <b>your</b> life rather than a national average. Everything stays in this browser.</div>
+
+    <!-- Everything below is one collapsed disclosure. It was all on the
+         first screen, which meant the three buttons that actually start
+         the tool were pushed below a wall of reference material. -->
+    <details class="ob-more">
+      <summary>How it works, and where your log lives</summary>
+      <div class="ob-more-body">
+
+        <div class="ob-sec">What it measures</div>
+        <div class="ob-metrics">
+          <div class="ob-metric"><div class="mi">⚡</div><div class="mt">Energy</div><div class="md">Watt-hours of compute, shown as phone charges &amp; LED-bulb hours.</div></div>
+          <div class="ob-metric"><div class="mi">💧</div><div class="mt">Water</div><div class="md">Millilitres used for data-center cooling &amp; power.</div></div>
+          <div class="ob-metric"><div class="mi">🌫️</div><div class="mt">Carbon</div><div class="md">CO₂e from grid energy, shown as car-miles driven.</div></div>
+        </div>
+
+        <div class="ob-sec">Getting your own data in</div>
+        <p class="ob-p">The Impact Tracker skill appends to <span class="path">__LOG_FILENAME__</span> in the folder you chose during setup. Load it with <b>Import file</b>, <b>drag it anywhere onto this page</b>, or use <b>📋 Paste JSON</b>. With the plugin installed, Claude adds an entry after every substantial session — just ask it to “refresh my impact dashboard.”</p>
+        <p class="ob-p">Hidden file? In the macOS Open dialog press <span class="kbd">⌘⇧.</span> to reveal dotfiles, or <span class="kbd">⌘⇧G</span> and paste the folder path. An entry looks like:</p>
+<pre>{
+  <span class="pk">"entries"</span>: [
+    {
+      <span class="pk">"timestamp"</span>: <span class="pv">"2026-07-12T20:33:00Z"</span>,
+      <span class="pk">"project"</span>:   <span class="pv">"Website Redesign"</span>,
+      <span class="pk">"model"</span>:     <span class="pv">"claude-opus-4-8"</span>,
+      <span class="pk">"energy_wh"</span>: <span class="pv">6.7</span>,
+      <span class="pk">"water_ml"</span>:  <span class="pv">11.4</span>,
+      <span class="pk">"total_tokens"</span>: <span class="pv">86500</span>,
+      <span class="pk">"context"</span>:   <span class="pv">"short note about the work"</span>
+    }
+  ]
+}</pre>
+
+        <div class="ob-note"><span class="ni">🔒</span><span>These are estimates, not meter readings — real impact depends on model, hardware, data-center location and grid mix. Trust the <b>trends</b> over any single number. Every rate is editable in the Methodology panel.</span></div>
+      </div>
+    </details>
+
+    <div class="ob-foot">Reopen this anytime from <b>? How it works</b>.</div>
+  </div>
+</div>
+
+<!-- ===================== BASELINE SETUP MODAL =====================
+     Six questions that turn a national average into the user's own life. Every
+     field is pre-filled with a sensible default, so "Skip" is always safe and
+     the form can be answered partially without breaking anything. -->
+<div class="ob-scrim hidden" id="baseScrim" role="dialog" aria-modal="true" aria-labelledby="baseTitle">
+  <div class="ob" style="max-width:640px">
+    <button class="ob-x" id="baseClose" aria-label="Close">✕</button>
+    <div class="ob-badge">🌱</div>
+    <h2 id="baseTitle">Set your baseline</h2>
+    <p class="ob-lede">Six questions. They set what your AI use gets compared <i>against</i> — without them you are being measured against a national average, not your life. Every answer stays in this browser.</p>
+
+    <div class="bq-list" id="bqList">
+      <div class="bq">
+        <div class="bq-n">1</div>
+        <div class="bq-body">
+          <label class="bq-q" for="bqAdults">Who lives in your home?</label>
+          <div class="bq-note">Home energy is split across everyone in the household.</div>
+          <div class="bq-row">
+            <span class="bq-f"><label for="bqAdults">Adults</label><input type="number" id="bqAdults" data-base="adults" min="1" step="1"></span>
+            <span class="bq-f"><label for="bqKids">Children</label><input type="number" id="bqKids" data-base="children" min="0" step="1"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bq">
+        <div class="bq-n">2</div>
+        <div class="bq-body">
+          <label class="bq-q" for="bqElec">How much energy does your home use?</label>
+          <div class="bq-note">Off your utility bill if you have it handy — otherwise leave the averages, they are close for most homes.</div>
+          <div class="bq-row">
+            <span class="bq-f"><label for="bqElec">Electricity kWh / month</label><input type="number" id="bqElec" data-base="elecKwhMo" min="0" step="10"></span>
+            <span class="bq-f"><label for="bqGas">Natural gas ft³ / month</label><input type="number" id="bqGas" data-base="gasCfMo" min="0" step="100"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bq">
+        <div class="bq-n">3</div>
+        <div class="bq-body">
+          <label class="bq-q" for="bqCar">How do you get around?</label>
+          <div class="bq-note">Usually the second-largest line after the home.</div>
+          <div class="bq-row">
+            <span class="bq-f"><label for="bqCar">Vehicle</label>
+              <select id="bqCar" data-base="carType">
+                <option value="none">No car</option>
+                <option value="ice">Petrol / diesel</option>
+                <option value="hybrid">Hybrid</option>
+                <option value="bev">Electric</option>
+              </select></span>
+            <span class="bq-f"><label for="bqMiles">Miles / year</label><input type="number" id="bqMiles" data-base="milesYr" min="0" step="500"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bq">
+        <div class="bq-n">4</div>
+        <div class="bq-body">
+          <label class="bq-q" for="bqDiet">How do you eat?</label>
+          <div class="bq-note">Standardised per 2,000 kcal — Scarborough et al. 2023.</div>
+          <div class="bq-row">
+            <span class="bq-f wide"><label for="bqDiet">Diet</label>
+              <select id="bqDiet" data-base="diet">
+                <option value="high">Heavy meat</option>
+                <option value="medium">Medium meat</option>
+                <option value="low">Low meat</option>
+                <option value="vegetarian">Vegetarian</option>
+                <option value="vegan">Vegan</option>
+              </select></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bq">
+        <div class="bq-n">5</div>
+        <div class="bq-body">
+          <label class="bq-q" for="bqFlyL">How much do you fly?</label>
+          <div class="bq-note">Round trips per year. One long-haul trip can outweigh a year of driving.</div>
+          <div class="bq-row">
+            <span class="bq-f"><label for="bqFlyL">Long-haul / yr</label><input type="number" id="bqFlyL" data-base="flightsLong" min="0" step="1"></span>
+            <span class="bq-f"><label for="bqFlyS">Short-haul / yr</label><input type="number" id="bqFlyS" data-base="flightsShort" min="0" step="1"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bq bq-ai">
+        <div class="bq-n">6</div>
+        <div class="bq-body">
+          <label class="bq-q" for="bqShare">Do you use other AI assistants?</label>
+          <div class="bq-note">This tool only ever measures <b>Claude</b> — it cannot see ChatGPT, Gemini, Copilot or anything else. Tell it roughly how much of your AI use is Claude and it will estimate the rest, clearly marked as an estimate.</div>
+          <div class="bq-row">
+            <span class="bq-f wide"><label for="bqShare">Share of your AI use that is Claude</label>
+              <select id="bqShare" data-base="claudeSharePct">
+                <option value="100">Claude only — 100%</option>
+                <option value="75">Mostly Claude — about 75%</option>
+                <option value="50">An even split — about 50%</option>
+                <option value="25">Claude sometimes — about 25%</option>
+                <option value="10">Claude rarely — about 10%</option>
+              </select></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bq-preview" id="bqPreview"></div>
+
+    <div class="ob-cta">
+      <button class="btn solid" id="baseSave">See my dashboard →</button>
+      <button class="btn" id="baseSkip">Skip — use averages</button>
+    </div>
+    <div class="ob-foot">You can change any of this later under <b>Real life → Your profile</b>.</div>
+  </div>
+</div>
+
+<!-- ===================== PASTE-LOG MODAL ===================== -->
+<div class="ob-scrim hidden" id="pasteScrim" role="dialog" aria-modal="true" aria-labelledby="pasteTitle">
+  <div class="ob" style="max-width:580px">
+    <button class="ob-x" id="pasteClose" aria-label="Close">✕</button>
+    <div class="ob-badge">📋</div>
+    <h2 id="pasteTitle">Paste your log</h2>
+    <p class="ob-lede">No file hunting needed. Easiest path: <b>ask Claude to print your log</b> — tap the button below to copy the exact prompt, send it to Claude, then paste the result here. (Or open <span class="mono">.environmental-impact-log.json</span> in any text editor and copy it.)</p>
+    <div style="height:14px"></div>
+    <textarea class="paste" id="pasteBox" spellcheck="false" placeholder='Paste your log here — accepts { "entries": [ … ] }, a plain [ … ] array, or one JSON object per line. Example:
+{ "entries": [ { "timestamp": "2026-07-12T20:33:00Z", "project": "My Project", "model": "claude-opus-4-8", "energy_wh": 6.7, "water_ml": 11.4, "total_tokens": 86500, "context": "what you worked on" } ] }'></textarea>
+    <div class="paste-err" id="pasteErr"></div>
+    <div class="ob-cta">
+      <button class="btn solid" id="pasteLoad">Load pasted log →</button>
+      <button class="btn" id="pastePrompt">⧉ Copy prompt for Claude</button>
+      <button class="btn" id="pasteCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SHARE MODAL ===================== -->
+<div class="ob-scrim hidden" id="shareScrim" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+  <div class="ob sharebox">
+    <button class="ob-x" id="shareClose" aria-label="Close">✕</button>
+    <div class="ob-badge">⇪</div>
+    <h2 id="shareTitle">Share your impact</h2>
+    <p class="ob-lede">A square image of the numbers currently on screen — totals, grade, and one real-world comparison. <b>No project names, no session text, nothing identifying.</b> The image is drawn here in your browser and never uploaded.</p>
+
+    <div class="share-preview"><canvas id="shareCanvas" width="1080" height="1080" aria-label="Preview of the shareable impact image"></canvas></div>
+
+    <div class="share-meta" id="shareMeta"></div>
+
+    <div class="ob-cta">
+      <button class="btn solid" id="shareDownload">⬇ Download PNG</button>
+      <button class="btn" id="shareCopy">⧉ Copy image</button>
+      <button class="btn" id="shareCaption">⧉ Copy caption</button>
+    </div>
+    <div class="ob-foot">1080 × 1080 — sized for Instagram, LinkedIn, Bluesky and Slack. Change the time range behind this dialog to share a different period.</div>
+  </div>
+</div>
+
+<!-- ===================== DRAG-DROP HINT ===================== -->
+<div class="drop-hint" id="dropHint"><div class="dz"><div class="di">⬇</div><div class="dt">Drop your log to import</div><div class="ds">a .json file shaped like {entries:[…]}</div></div></div>
+
+<!-- ===================== TOAST ===================== -->
+<div class="toast" id="toast"></div>
+
+<div class="wrap">
+
+  <!-- ===================== HEADER ===================== -->
+  <div class="head">
+    <div class="title">
+      <h1><span class="leaf-badge">🌍</span> Personal AI Usage &amp; Impact</h1>
+      <p>Track the energy, water, and carbon footprint of your AI usage — drill into each project, and turn awareness into action.</p>
+    </div>
+    <div class="toolbar">
+      <span class="src-pill" id="srcPill">Source: <b id="srcName">sample data</b></span>
+      <button class="btn" id="helpBtn" title="How it works">? How it works</button>
+      <div class="pdf-wrap">
+        <button class="btn" id="dataBtn" aria-haspopup="true" aria-expanded="false">⛁ Data ▾</button>
+        <div class="pdf-menu" id="dataMenu" role="menu">
+          <div class="mh">Get data in</div>
+          <label role="menuitem" for="fileIn" id="dmImport" style="display:flex;width:100%;align-items:center;justify-content:space-between;gap:14px;text-align:left;padding:9px 11px;border-radius:8px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer">⬆ Import log file<span>.json</span></label>
+          <button id="dmPaste" role="menuitem">📋 Paste JSON<span>no file hunting</span></button>
+          <div class="msep"></div>
+          <div class="mh">Get data out</div>
+          <button id="dmExport" role="menuitem">⬇ Export log<span>.json backup</span></button>
+          <div class="msep"></div>
+          <button id="dmReset" role="menuitem">↺ Reload baked log<span>discard import</span></button>
+          <div class="mfoot">Your log: <span class="path">__LOG_FILENAME__</span> — drag it anywhere onto this page, or see <b>? How it works</b>.</div>
+        </div>
+      </div>
+      <input type="file" id="fileIn" accept="application/json,.json">
+    </div>
+  </div>
+
+  <!-- ===================== VERDICT BAND =====================
+       The answer, before the instrument. Rendered by renderVerdict(). -->
+  <div class="verdict" id="verdict" hidden>
+    <p class="vd-lead" id="vdLead"></p>
+    <p class="vd-sub" id="vdSub"></p>
+  </div>
+
+  <!-- ===================== STICKY ROLLUP HEADER ===================== -->
+  <div class="stickyhead" id="secNav">
+    <div class="sh-nav">
+      <a href="#kpis" data-nav="kpis">Overview</a>
+      <a href="#trends" data-nav="trends">Trends</a>
+      <a href="#life" data-nav="life">Real life</a>
+      <a href="#sessions" data-nav="sessions">Sessions</a>
+      <a href="#actions" data-nav="actions">Actions</a>
+      <a href="#audit" data-nav="audit">Audit</a>
+      <a href="#method" data-nav="method">Methodology</a>
+      <span class="navspace"></span>
+      <!-- AI as a share of the user's whole yearly footprint. Hidden until the
+           profile has enough in it to make the comparison meaningful. -->
+      <button class="btn aipill" id="aiSharePill" hidden
+              title="Your AI use as a share of your whole yearly footprint — click for the breakdown">
+        <span class="ap-v">—</span><span class="ap-l">of your footprint</span>
+      </button>
+      <!-- only rendered in the condensed (scrolled) state: shows the active
+           range and re-opens the range controls that collapse on scroll -->
+      <button class="btn tiny rangepill" id="rangePill" aria-expanded="false"
+              title="Change the time range">This week ▾</button>
+      <button class="btn theme-btn" id="themeBtn" title="Toggle light / dark" aria-label="Toggle light or dark theme">🌙</button>
+      <button class="btn share-btn" id="shareBtn" title="Create a shareable image of your impact">⇪ Share</button>
+      <div class="pdf-wrap">
+        <button class="btn solid pdf-btn" id="pdfBtn" aria-haspopup="true" aria-expanded="false">⬇ Export PDF ▾</button>
+        <div class="pdf-menu" id="pdfMenu" role="menu">
+          <div class="mh">Export as PDF</div>
+          <button data-print="all" role="menuitem">Everything<span>full report</span></button>
+          <button data-print="overview" role="menuitem">Overview<span>KPIs</span></button>
+          <button data-print="trends" role="menuitem">Trends<span>charts</span></button>
+          <button data-print="life" role="menuitem">Real life<span>footprint context</span></button>
+          <button data-print="sessions" role="menuitem">Sessions<span>table</span></button>
+          <button data-print="actions" role="menuitem">Actions<span>mitigation</span></button>
+          <button data-print="audit" role="menuitem">Audit<span>how the numbers were measured</span></button>
+          <button data-print="method" role="menuitem">Methodology<span>sources</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="sh-roll">
+      <div class="rangebar">
+        <div class="seg" id="rangeSeg" role="group" aria-label="Time range">
+          <button data-range="today">Today</button>
+          <button data-range="week" class="on">This week</button>
+          <button data-range="month">This month</button>
+          <button data-range="lastmonth">Last month</button>
+          <button data-range="d30">Last 30 days</button>
+          <button data-range="all">All-time</button>
+          <button data-range="custom">Custom…</button>
+        </div>
+        <label class="cmp-toggle" title="Show change vs. the equivalent period before this one">
+          <input type="checkbox" id="cmpToggle" checked>
+          <span>Compare</span>
+        </label>
+      </div>
+      <div class="customrow hidden" id="customRow">
+        <label class="dt"><span>From</span><input type="date" id="dtFrom"></label>
+        <label class="dt"><span>To</span><input type="date" id="dtTo"></label>
+        <button class="btn tiny" id="dtClear">Clear</button>
+        <span class="dt-hint" id="dtHint"></span>
+      </div>
+      <div class="rangemeta"><span class="rl" id="rangeLabel"></span></div>
+      <div class="mini" id="miniKpis"></div>
+    </div>
+  </div>
+
+  <!-- ===================== KPI CARDS ===================== -->
+  <div class="sec-label" data-sec="overview">Overview <span class="sl-note">totals for the selected range</span></div>
+  <div class="kpis" id="kpis" data-sec="overview"></div>
+
+  <!-- ===================== FILTERS ===================== -->
+  <div class="filters">
+    <div class="grp">
+      <label for="projSel">Project</label>
+      <select id="projSel"><option value="__all">All projects</option></select>
+    </div>
+    <div class="grp">
+      <label for="modelSel">Model</label>
+      <select id="modelSel"><option value="__all">All models</option></select>
+    </div>
+    <div class="spacer"></div>
+    <div class="grp">
+      <label for="searchIn">Search context</label>
+      <input type="search" id="searchIn" placeholder="e.g. verification, export…">
+    </div>
+  </div>
+
+  <!-- ===================== ROTATING COMPARISONS ===================== -->
+  <div class="panel comparewrap" data-sec="overview">
+    <h3>What your footprint equals <span class="hint prose">swipe or step through the examples &mdash; tap <b>i</b> for the figure behind each one</span></h3>
+    <div class="compare" id="compareStrip">
+
+      <div class="cx cx-energy"><div class="cic">
+        <svg viewBox="0 0 40 40" aria-hidden="true" class="motif motif-energy">
+          <circle class="m-pulse" cx="20" cy="20" r="13"/>
+          <circle class="m-pulse m-pulse2" cx="20" cy="20" r="13"/>
+          <path class="m-bolt" d="M22.4 8.5 13.2 21.4h5.6l-1.6 10.1 9.4-13.2h-5.8z"/>
+        </svg>
+      </div><div class="cbody"><div class="ctop"><div class="ck">Energy</div><div class="cnav"><button class="cprev" type="button" aria-label="Previous energy example">&lsaquo;</button><div class="cdots" id="dots-energy"></div><button class="cnext" type="button" aria-label="Next energy example">&rsaquo;</button></div></div><div class="cbig" id="cbig-energy">&mdash;</div><div class="ctrack" id="track-energy" tabindex="0" role="group" aria-label="Energy comparisons"></div></div></div>
+
+      <div class="cx cx-water"><div class="cic">
+        <svg viewBox="0 0 40 40" aria-hidden="true" class="motif motif-water">
+          <defs><clipPath id="mDrop"><path d="M20 6.5c5.4 6.2 8.6 10.8 8.6 15.1a8.6 8.6 0 0 1-17.2 0c0-4.3 3.2-8.9 8.6-15.1z"/></clipPath></defs>
+          <path class="m-drop-o" d="M20 6.5c5.4 6.2 8.6 10.8 8.6 15.1a8.6 8.6 0 0 1-17.2 0c0-4.3 3.2-8.9 8.6-15.1z"/>
+          <g clip-path="url(#mDrop)">
+            <path class="m-wave" d="M-20 23q10-3.4 20 0t20 0 20 0 20 0v22h-80z"/>
+            <path class="m-wave m-wave2" d="M-20 25.4q10 3.4 20 0t20 0 20 0 20 0v22h-80z"/>
+          </g>
+        </svg>
+      </div><div class="cbody"><div class="ctop"><div class="ck">Water</div><div class="cnav"><button class="cprev" type="button" aria-label="Previous water example">&lsaquo;</button><div class="cdots" id="dots-water"></div><button class="cnext" type="button" aria-label="Next water example">&rsaquo;</button></div></div><div class="cbig" id="cbig-water">&mdash;</div><div class="ctrack" id="track-water" tabindex="0" role="group" aria-label="Water comparisons"></div></div></div>
+
+      <div class="cx cx-carbon"><div class="cic">
+        <svg viewBox="0 0 40 40" aria-hidden="true" class="motif motif-carbon">
+          <g class="m-cloud">
+            <circle cx="15.5" cy="19.5" r="6"/><circle cx="23" cy="17.5" r="7.5"/>
+            <circle cx="28.5" cy="21" r="5"/><rect x="9.5" y="19" width="24" height="7" rx="3.5"/>
+          </g>
+          <path class="m-wisp"  d="M9 31h12"/>
+          <path class="m-wisp m-wisp2" d="M15 34.5h13"/>
+        </svg>
+      </div><div class="cbody"><div class="ctop"><div class="ck">Carbon</div><div class="cnav"><button class="cprev" type="button" aria-label="Previous carbon example">&lsaquo;</button><div class="cdots" id="dots-carbon"></div><button class="cnext" type="button" aria-label="Next carbon example">&rsaquo;</button></div></div><div class="cbig" id="cbig-carbon">&mdash;</div><div class="ctrack" id="track-carbon" tabindex="0" role="group" aria-label="Carbon comparisons"></div></div></div>
+
+    </div>
+  </div>
+
+  <!-- ===================== DRILL PANEL ===================== -->
+  <div class="drill hidden" id="drill" data-sec="overview"></div>
+
+  <!-- ===================== CHARTS ===================== -->
+  <div class="sec-label" id="trends" data-sec="trends">Trends <span class="sl-note">where the footprint comes from, and whether it's improving</span></div>
+  <div class="grid two" data-sec="trends" style="margin-bottom:16px">
+    <div class="panel">
+      <h3>Cumulative energy over time <span class="hint" id="cumHint"></span></h3>
+      <div class="sub">Running total of energy used across the selected data.</div>
+      <div id="cumChart"></div>
+      <p class="retnote"><b>Read early months with care.</b> Local transcripts get pruned, so the further back you look the more sessions are missing from the record rather than absent from your usage. Measured on this machine: Transcripts are pruned over time, so the earliest session here marks where the surviving files begin rather than when you started. Growth before September is therefore overstated to an unknown degree.</p>
+    </div>
+    <div class="panel panel-proj">
+      <h3>By project
+        <span class="seg metricseg" id="projMetric" role="group" aria-label="Metric for the project ranking">
+          <button data-metric="wh" class="on">Energy</button>
+          <button data-metric="ml">Water</button>
+          <button data-metric="co2">CO₂e</button>
+          <button data-metric="n">Sessions</button>
+        </span>
+      </h3>
+      <div class="sub" id="projSub">Where your footprint concentrates<span class="click-hint"> — click a row to drill down</span>.</div>
+      <div class="pbar" id="projBars"></div>
+    </div>
+  </div>
+
+  <div class="grid two" data-sec="trends" style="margin-bottom:16px">
+    <div class="panel">
+      <h3>Energy per session <span class="hint" id="tsHint"></span></h3>
+      <div class="sub">Each bar is one logged session, in date order, coloured by the model that ran it.<span class="click-hint"> Click a bar to see what that session was.</span></div>
+      <div id="tsChart"></div>
+      <div id="tsDetail" class="ts-detail"></div>
+    </div>
+    <div class="panel">
+      <h3>Model mix</h3>
+      <div class="sub">Energy share by model. Heavier models cost more per token.</div>
+      <div id="modelDonut"></div>
+      <div class="legend" id="modelLegend"></div>
+    </div>
+  </div>
+
+  <div class="grid two" data-sec="trends" style="margin-bottom:16px">
+    <div class="panel">
+      <h3>Efficiency over time <span class="hint" id="effHint"></span></h3>
+      <div class="sub">Energy per million tokens. Each dot is one session, coloured by model; the line is a 5-session rolling average. Lower is leaner.</div>
+      <div id="effChart"></div>
+    </div>
+    <div class="panel">
+      <h3>Where the energy goes <span class="hint prose">model choice &amp; context cost</span></h3>
+      <div class="sub">Whether you paid for the right model — and whether you paid to re-send context.</div>
+      <div class="cx-grid" id="ctxBody"></div>
+    </div>
+  </div>
+
+  <!-- ===================== LIFE FOOTPRINT ===================== -->
+  <div class="sec-label" id="life" data-sec="life">Your AI use in real life</div>
+  <div class="panel" data-sec="life">
+    <h3>Real-world footprint
+      <span class="seg lifeseg" id="lifeTabs">
+        <button data-lifeview="context" class="on">In context</button>
+        <button data-lifeview="avoided">Avoided emissions</button>
+      </span>
+    </h3>
+    <div class="sub">Household energy, cars, flights and food dwarf almost any digital footprint. Fill in as much or as little as you like — it stays in this browser and is never uploaded.</div>
+    <div id="lifeBody"></div>
+  </div>
+
+  <!-- ===================== SESSIONS TABLE ===================== -->
+  <div class="sec-label" id="sessions" data-sec="sessions">Session log</div>
+  <div class="panel" data-sec="sessions">
+    <h3>All sessions <span class="hint" id="rowCount"></span></h3>
+    <div class="tbl-wrap">
+      <table id="tbl">
+        <thead><tr>
+          <th data-sort="timestamp">Date</th>
+          <th data-sort="project">Project</th>
+          <th data-sort="model">Model</th>
+          <th class="num" data-sort="total_tokens">Tokens</th>
+          <th class="num" data-sort="energy_wh">Wh</th>
+          <th class="num" data-sort="water_ml">Water mL</th>
+          <th class="num" data-sort="co2">CO₂e g</th>
+          <th data-sort="context">Context</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===================== MITIGATION ===================== -->
+  <div class="sec-label" id="actions" data-sec="actions">Turn awareness into action</div>
+  <div class="panel" data-sec="actions">
+    <h3>Real-life mitigation actions <span class="hint" id="mitProgTxt"></span></h3>
+    <div class="sub">Check off what you're doing. Progress saves to this browser. Impact figures are directional, not precise.</div>
+    <div class="progress"><div class="pf" id="mitProg" style="width:0%"></div></div>
+    <div style="height:14px"></div>
+    <div class="mit-cats" id="mitCats"></div>
+  </div>
+
+  <!-- ===================== METHODOLOGY ===================== -->
+  <!-- ===================== MEASUREMENT AUDIT =====================
+       Static narrative: how this log came to be trustworthy, what it still
+       cannot see, and what is left to build. Deliberately does NOT react to
+       the range picker - it describes the measurement record as a whole. -->
+  <div class="sec-label" id="audit" data-sec="audit">How these numbers were measured
+    <span class="sl-note">the record as a whole &mdash; this section ignores the range above</span></div>
+
+  <div class="panel" data-sec="audit">
+    <h3>What the importer found</h3>
+    <div class="auditcards">
+      <div class="ac"><div class="ack">Sessions measured</div><div class="acn">__AUDIT_SESSIONS__</div>
+        <div class="acd">Local Claude Code and Cowork transcripts, read straight from disk. Token counts come from each assistant turn&rsquo;s own usage block, so these are measurements rather than estimates.</div></div>
+      <div class="ac"><div class="ack">Measured, not estimated</div><div class="acn">__AUDIT_EXACT_PCT__%</div>
+        <div class="acd">Share of the energy on this page that comes from exact token counts. The rest is estimated &mdash; self-reported entries and any data export &mdash; and is marked as such in the table below.</div></div>
+      <div class="ac warn"><div class="ack">Cache share</div><div class="acn">__AUDIT_CACHE_PCT__%</div>
+        <div class="acd">Of __AUDIT_TOKENS__ tokens processed, __AUDIT_CACHE_TOKENS__ were cache reads &mdash; context re-sent on every turn. Self-reporting is structurally blind to this, which is why it undercounts so badly.</div></div>
+    </div>
+
+    <p class="auditp">There are two ways to know what a session cost. Claude can estimate its own token use at the end of a turn &mdash; which only fires when it remembers, needs a rule in every project&rsquo;s <code>CLAUDE.md</code>, and cannot see cached context at all. Or you can read the transcripts the desktop app and Claude Code already write to disk, where every turn records its exact usage. <code>tools/import_transcripts.py</code> does the second: it de-duplicates on a hash of each file&rsquo;s path, and supersedes a self-reported entry only when a transcript session <em>for the same project</em> covers it. It is idempotent &mdash; re-running picks up only what is new.</p>
+
+    <p class="auditp"><b>Retention limits how far back this can see.</b> The importer reads transcripts on disk, and those are pruned over time. The earliest session in this log is __AUDIT_FIRST__ &mdash; that is not a start date, only where the surviving files begin. __AUDIT_PRUNED__ already reference files that have since been deleted; those entries stay in the log, but nothing further can be recovered from before the window. Usage from before you started measuring will always look lighter than it was.</p>
+
+    <p class="auditp"><b>Two known limitations.</b> Every Cowork session lands in a single bucket, because those transcript files carry no project field &mdash; per-project attribution would need a classifier that does not exist yet. And Claude Code projects are named after the raw working-directory folder rather than any tidy name, across __AUDIT_PROJECTS__ distinct names in this log.</p>
+
+    <h3>Where your usage lives, surface by surface</h3>
+    <div class="tbl-wrap"><table class="audittbl">
+      <thead><tr><th>Surface</th><th>Source</th><th>Quality</th><th>In this log</th></tr></thead>
+      <tbody>
+        <tr><td>Claude Code &amp; Cowork, local</td><td>Transcript files already on your machine</td><td><span class="qpill ok">exact</span></td><td>__AUDIT_MEASURED_ROW__</td></tr>
+        <tr><td>Self-reported sessions</td><td>The skill&rsquo;s own end-of-turn estimate</td><td><span class="qpill est">estimate</span></td><td>__AUDIT_SELF_ROW__</td></tr>
+        <tr><td>claude.ai chat &amp; mobile</td><td>Settings &rarr; Privacy &rarr; Export your data</td><td><span class="qpill est">estimate</span></td><td>__AUDIT_EXPORT_ROW__</td></tr>
+        <tr><td>Cloud sessions</td><td>Not written to disk; no hook available</td><td><span class="qpill est">estimate</span></td><td>Self-report only</td></tr>
+        <tr><td>Anthropic API</td><td>Console usage &amp; cost CSV export</td><td><span class="qpill ok">exact</span></td><td>Not covered</td></tr>
+        <tr><td>ChatGPT, Gemini, others</td><td>Each vendor&rsquo;s own data export</td><td><span class="qpill est">estimate</span></td><td>Unseen-tools estimate</td></tr>
+      </tbody>
+    </table></div>
+    <p class="auditp">The honest gap is anything that never touches your disk &mdash; cloud sessions and other vendors&rsquo; tools. Where a row says estimate, treat the number as an order of magnitude, not a reading.</p>
+
+    <h3>What this does not claim</h3>
+    <p class="auditp">Energy per token is modelled, not metered. Nobody outside a data-centre operator can measure the draw of a single request, so this uses published per-model figures and a grid-intensity assumption you can edit in the methodology panel below. Cache reads are costed at a fraction of the input rate, and that fraction is an assumption governing most of the tokens here. The comparisons are sourced and the arithmetic is shown, but the inputs carry real uncertainty. Treat this as a well-founded estimate of scale &mdash; good enough to tell a rounding error from a real problem, not good enough to audit anyone.</p>
+    <!--__CHANGELOG__-->
+  </div>
+
+  <div class="sec-label" id="method" data-sec="method">How this is calculated</div>
+  <div class="panel meth" data-sec="method">
+    <h3>Methodology &amp; assumptions <span class="hint prose">rates are editable — numbers update live</span></h3>
+    <div class="sub">Historical energy/water are shown as they were logged. CO₂e is derived from energy × grid intensity below. Everything here is an <b>estimate</b>.</div>
+    <div class="grid two">
+      <div>
+        <table>
+          <thead><tr><th>Model energy (Wh / million tokens)</th><th class="num">Input</th><th class="num">Output</th><th class="num">Blended</th></tr></thead>
+          <tbody id="rateRows"></tbody>
+        </table>
+      </div>
+      <div>
+        <table>
+          <tbody id="factorRows"></tbody>
+        </table>
+        <div class="callout" id="methNote"></div>
+      </div>
+    </div>
+    <details>
+      <summary>Sources &amp; caveats</summary>
+      <div style="margin-top:12px">
+        <div class="src"><b>Per-token model energy rates</b> — from the <i>environmental-impact-tracker</i> methodology (Anthropic Cowork skill): Opus 50/250, Sonnet 30/150, Haiku 10/50 Wh per million input/output tokens.</div>
+        <div class="src"><b>Water usage</b> — Li et al., “Making AI Less Thirsty: Uncovering and Addressing the Secret Water Footprint of AI Models” (2023), arXiv:2304.03271. Data-center water is highly location- and cooling-dependent.</div>
+        <div class="src"><b>Electricity &amp; data-centre energy</b> — International Energy Agency (IEA), <i>Electricity 2024</i> and data-centre analyses, iea.org.</div>
+        <div class="src"><b>CO₂e equivalencies</b> (miles driven, etc.) — US EPA Greenhouse Gas Equivalencies Calculator, epa.gov. Passenger vehicle ≈ 404 g CO₂/mile.</div>
+        <div class="src"><b>Grid carbon intensity</b> — global average ≈ 0.40 kg CO₂e/kWh (IEA); varies widely by region and by how much renewable energy the data-center uses. Edit the value above to match your grid.</div>
+        <div class="src"><b>Usage grade (A+–F)</b> — a 0–100 optimization score, not an absolute verdict: model efficiency (50 pts, from effective Wh per million tokens — lighter models like Haiku/Sonnet score higher than Opus), session leanness (30 pts, from average Wh per session), and mitigation commitment (20 pts, from the checklist above). It reflects <i>how</i> you use AI relative to the most-efficient choices, and updates with your filters and checkboxes.</div>
+        <div class="src"><b>Comparison factors</b> — phone charge ≈ 12 Wh; LED bulb 10 W; kettle boil ≈ 100 Wh; water bottle 500 mL; glass 240 mL; running tap ≈ 100 mL/s; car ≈ 404 g CO₂/mile (EPA) ≈ 251 g/km; a mature tree absorbs ≈ 57 g CO₂/day.</div>
+        <div class="src"><b>Efficiency (Wh per million tokens)</b> — each session's logged energy divided by its logged tokens. It is the only efficiency figure this log shape supports; the input/output split cannot be recovered from total energy alone, because entries costed with a blended rate back-solve to impossible values. New entries record <span class="mono">input_tokens</span> and <span class="mono">output_tokens</span> so the real split becomes measurable going forward.</div>
+        <div class="src"><b>Home energy</b> — US household averages of 881 kWh/month of electricity and 4,717 ft³/month of natural gas, at 0.12 lb CO₂ per ft³ (US EPA, Household Carbon Footprint Calculator). Grid intensity defaults to 367 g CO₂e/kWh, the US average generation rate (US EIA, 2023). Both are editable above.</div>
+        <div class="src"><b>Driving</b> — a typical US passenger vehicle emits ≈ 400 g CO₂ per mile and ≈ 4.6 t CO₂/year at 11,500 miles and 22.2 mpg (US EPA, <i>Greenhouse Gas Emissions from a Typical Passenger Vehicle</i>). Petrol figures are scaled by your mpg; EV figures use ≈ 0.35 kWh/mile against your grid intensity.</div>
+        <div class="src"><b>Vehicle manufacturing (embodied)</b> — building a new petrol sedan releases ≈ 6 t CO₂; a comparable EV ≈ 10 t, mostly from the battery. Keeping a car therefore <i>defers</i> those emissions rather than removing them, and a much more efficient replacement can pay its manufacturing back over time.</div>
+        <div class="src"><b>Flights</b> — one transatlantic round trip ≈ 1.6 t CO₂e (Wynes &amp; Nicholas 2017, <i>Environmental Research Letters</i> 12:074024). The short-haul figure is scaled by distance from that number and is rougher.</div>
+        <div class="src"><b>Diet</b> — kg CO₂e/day standardised to 2,000 kcal (Scarborough et al. 2023, <i>Nature Food</i>): high-meat 10.24 and vegan 2.47 are reported directly; low-meat 5.86 uses the paper's 57.2% ratio; medium-meat and vegetarian are interpolated between them and are the softest numbers here.</div>
+        <div class="src"><b>Children and household size</b> — treated only as household composition: more people share the home's energy, which lowers each person's share of it. The widely-cited figure of 58.6 t CO₂e/year for "having one fewer child" (Wynes &amp; Nicholas 2017) is <i>deliberately not used</i> anywhere in this dashboard. It assigns a parent half of a child's projected lifetime emissions plus a quarter of the grandchildren's and so on, using historical emission rates that assume no decarbonisation — an accounting choice that is heavily contested and that this tool takes no position on.</div>
+        <div class="src"><b>Avoided emissions are not offsets</b> — the ledger is shown beside your AI footprint and never subtracted from it. Energy consumed cannot be un-consumed; reductions elsewhere are separate real-world wins. Every line is counterfactual — measured against a baseline you set yourself — so it is only as honest as that baseline.</div>
+        <div class="src" style="color:var(--mut2)">These figures are order-of-magnitude estimates. Real impact depends on model, hardware, data-center location, cooling, grid mix, and caching. Treat trends as more reliable than absolute values.</div>
+      </div>
+    </details>
+  </div>
+
+  <footer>
+    <div>Built as a self-contained, zero-tracking HTML tool — no external calls, works offline, and travels well as the seed of a shareable plugin. Import any <span class="mono">.environmental-impact-log.json</span> with the same shape to analyze your own usage.</div>
+    <div style="margin-top:8px" id="buildStamp"></div>
+  </footer>
+
+</div>
+
+<!--__SCRIPTS__-->
+</body>
+</html>

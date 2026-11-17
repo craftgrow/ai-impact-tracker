@@ -1,0 +1,14 @@
+{
+  "name": "craftgrow",
+  "description": "Tools published by Craft Grow.",
+  "owner": {
+    "name": "Craft Grow"
+  },
+  "plugins": [
+    {
+      "name": "ai-impact-tracker",
+      "source": "./",
+      "description": "Measure the real environmental footprint of your AI use - energy, water and CO2e - from the session transcripts already on your machine, and see it in a dashboard that compares it to your own life."
+    }
+  ]
+}
