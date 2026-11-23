@@ -135,3 +135,5 @@ person's usage is in this repository.
 ## Licence
 
 MIT.
+
+The plugin icon was designed with AI assistance (Claude, by Anthropic).
